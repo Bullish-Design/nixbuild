@@ -44,10 +44,10 @@ from nixos_rebuild_tester.domain.neovim_models import (
     NeovimTestConfig,
 )
 from nixos_rebuild_tester.domain.protocols import (
-    IArtifactExporter,
-    IFileSystem,
-    IMetadataStore,
-    ITerminalSession,
+    ArtifactExporter,
+    BuildRepository,
+    FileSystem,
+    TerminalSession,
 )
 from nixos_rebuild_tester.domain.value_objects import (
     BuildId,
@@ -78,10 +78,10 @@ __all__ = [
     "NeovimCommand",
     "NeovimTestConfig",
     # Protocols
-    "IArtifactExporter",
-    "IFileSystem",
-    "IMetadataStore",
-    "ITerminalSession",
+    "ArtifactExporter",
+    "BuildRepository",
+    "FileSystem",
+    "TerminalSession",
     # Value Objects
     "BuildId",
     "Duration",
