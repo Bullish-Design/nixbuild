@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING
 
-from nixos_rebuild_tester.domain.exceptions import ExecutionTimeout
+from nixos_rebuild_tester.domain.exceptions import ExecutionTimeout, SessionTimeout
 from nixos_rebuild_tester.domain.error_detector import ErrorDetector
 from nixos_rebuild_tester.domain.value_objects import Duration, ErrorSource
 
@@ -59,7 +59,7 @@ class CommandRunner:
         # Wait for completion
         try:
             exit_code = await session.wait_for_completion(config.timeout_seconds)
-        except Exception as e:
+        except SessionTimeout as e:
             raise ExecutionTimeout(f"Command timed out after {config.timeout_seconds}s") from e
 
         # Calculate duration
