@@ -113,6 +113,12 @@ class RecordingConfig(BaseModel):
     height: Annotated[int, Field(ge=20, le=100)] = Field(default=40, description="Terminal height in lines")
     export_gif: bool = Field(default=False, description="Export GIF animation of rebuild")
     export_screenshot: bool = Field(default=True, description="Export final terminal screenshot")
+    capture_interval_seconds: Annotated[float, Field(ge=0.1, le=10.0)] = Field(
+        default=1.0, description="Seconds between frame captures during recording"
+    )
+    max_frames: Annotated[int, Field(ge=10, le=20000)] = Field(
+        default=2000, description="Maximum number of frames to capture"
+    )
 
 
 class RebuildConfig(BaseModel):

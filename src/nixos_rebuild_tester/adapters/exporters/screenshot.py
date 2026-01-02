@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -31,5 +32,5 @@ class ScreenshotExporter:
         recording = getattr(session, "recording", None)
         if recording and recording.frames:
             final_frame = recording.frames[-1]
-            self._exporter.export_frame(final_frame, output_path)
+            await asyncio.to_thread(self._exporter.export_frame, final_frame, output_path)
         return output_path

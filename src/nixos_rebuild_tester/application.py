@@ -39,7 +39,7 @@ class Application:
         session = RebuildSession.create(self.config.rebuild)
 
         # Create output directory
-        output_dir = await self._container.directory_manager().create_for_build(session.session_id)
+        output_dir = self._container.directory_manager().create_for_build(session.session_id)
 
         executor = self._container.rebuild_executor()
         terminal_session = None
@@ -53,6 +53,8 @@ class Application:
                 session,
                 width=self.config.recording.width,
                 height=self.config.recording.height,
+                capture_interval_seconds=self.config.recording.capture_interval_seconds,
+                max_frames=self.config.recording.max_frames,
             )
 
             # Export artifacts

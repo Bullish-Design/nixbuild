@@ -36,6 +36,14 @@ class TerminalSession(Protocol):
         """
         ...
 
+    async def capture_frame(self) -> str:
+        """Capture current terminal frame content.
+
+        Returns:
+            Current frame content as string
+        """
+        ...
+
     @property
     def frames(self) -> list[str]:
         """Return all captured frames.

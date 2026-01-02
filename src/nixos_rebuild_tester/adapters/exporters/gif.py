@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -30,5 +31,5 @@ class GifExporter:
         """
         recording = getattr(session, "recording", None)
         if recording:
-            self._exporter.export(recording, output_path)
+            await asyncio.to_thread(self._exporter.export, recording, output_path)
         return output_path
