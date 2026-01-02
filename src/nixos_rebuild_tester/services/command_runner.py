@@ -103,6 +103,7 @@ class CommandRunner:
 
         # Add --no-write-lock-file for remote flakes
         if self._is_remote_flake(config.flake_ref):
+            parts.append("--refresh")
             parts.append("--no-write-lock-file")
 
         return " ".join(parts)
