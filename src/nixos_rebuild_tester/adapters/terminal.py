@@ -5,9 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from terminal_state.models.config import SessionConfig
-from terminal_state.models.recording import Recording
-from terminal_state.session.terminal import TerminalSession as TSSession
+from terminal_state import Recording, TerminalSession as TerminalStateSession
 
 from nixos_rebuild_tester.domain.value_objects import TerminalDimensions
 
@@ -24,21 +22,19 @@ class TmuxTerminalAdapter:
         """
         self._width = width
         self._height = height
-        self._session: TSSession | None = None
+        self._session: TerminalStateSession | None = None
         self._frames: list[str] = []
         self._recording: Recording | None = None
 
     def __enter__(self) -> TmuxTerminalAdapter:
         """Start terminal session context."""
-        config = SessionConfig(width=self._width, height=self._height)
-        self._session = TSSession(config)
-        self._session.__enter__()
+        self._session = TerminalStateSession.create(width=self._width, height=self._height)
         return self
 
     def __exit__(self, *args: Any) -> None:
         """Clean up terminal session."""
         if self._session:
-            self._session.__exit__(*args)
+            self._session.destroy()
 
     async def execute(self, command: str, timeout: int) -> int:
         """Execute command with periodic frame capture.
