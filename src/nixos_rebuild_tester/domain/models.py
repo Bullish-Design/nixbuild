@@ -36,14 +36,6 @@ class BuildArtifacts(BaseModel):
     screenshot_file: Path | None = None
     gif_file: Path | None = None
 
-    @field_validator("log_file")
-    @classmethod
-    def log_must_exist(cls, v: Path) -> Path:
-        """Validate that log file exists."""
-        if not v.exists():
-            raise ValueError(f"Log file must exist: {v}")
-        return v
-
     @computed_field
     @property
     def all_files(self) -> list[Path]:

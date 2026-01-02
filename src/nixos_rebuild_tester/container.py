@@ -5,25 +5,20 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from nixos_rebuild_tester.adapters.filesystem import LocalFileSystem
-from nixos_rebuild_tester.adapters.persistence.filesystem_repository import FileSystemBuildRepository
-from nixos_rebuild_tester.domain.services.error_detector import ErrorDetector
-from nixos_rebuild_tester.services.execution.command_runner import CommandRunner
-from nixos_rebuild_tester.services.execution.frame_recorder import FrameRecorder
-from nixos_rebuild_tester.services.execution.rebuild_executor import RebuildExecutor
-from nixos_rebuild_tester.services.execution.session_manager import SessionManager
-from nixos_rebuild_tester.services.export.exporter_registry import ExporterRegistry
-from nixos_rebuild_tester.services.export.pipeline import ExportPipeline
-from nixos_rebuild_tester.services.storage.build_cleaner import BuildCleaner
-from nixos_rebuild_tester.services.storage.directory_manager import BuildDirectoryManager
-from nixos_rebuild_tester.services.storage.retention_policy import RetentionPolicy
+from nixos_rebuild_tester.domain.error_detector import ErrorDetector
+from nixos_rebuild_tester.services.build_cleaner import BuildCleaner
+from nixos_rebuild_tester.services.command_runner import CommandRunner
+from nixos_rebuild_tester.services.directory_manager import BuildDirectoryManager
+from nixos_rebuild_tester.services.export_pipeline import ExportPipeline
+from nixos_rebuild_tester.services.exporter_registry import ExporterRegistry
+from nixos_rebuild_tester.services.frame_recorder import FrameRecorder
+from nixos_rebuild_tester.services.rebuild_executor import RebuildExecutor
+from nixos_rebuild_tester.services.retention_policy import RetentionPolicy
+from nixos_rebuild_tester.services.session_manager import SessionManager
 
 if TYPE_CHECKING:
     from nixos_rebuild_tester.domain.models import Config
-    from nixos_rebuild_tester.domain.protocols import (
-        BuildRepository,
-        FileSystem,
-        TerminalBackend,
-    )
+    from nixos_rebuild_tester.domain.protocols import FileSystem
 
 
 class Container:
@@ -52,31 +47,6 @@ class Container:
             self._singletons["filesystem"] = LocalFileSystem()
         return self._singletons["filesystem"]
 
-    def terminal_backend(self) -> TerminalBackend:
-        """Get terminal backend implementation.
-
-        Returns:
-            TerminalBackend singleton
-        """
-        if "terminal_backend" not in self._singletons:
-            # Import here to avoid circular dependency
-            from nixos_rebuild_tester.adapters.terminal_backend import TmuxTerminalBackend
-
-            self._singletons["terminal_backend"] = TmuxTerminalBackend()
-        return self._singletons["terminal_backend"]
-
-    def repository(self) -> BuildRepository:
-        """Get build repository implementation.
-
-        Returns:
-            BuildRepository singleton
-        """
-        if "repository" not in self._singletons:
-            self._singletons["repository"] = FileSystemBuildRepository(
-                filesystem=self.filesystem(),
-                base_dir=self._config.output.base_dir,
-            )
-        return self._singletons["repository"]
 
     # Domain Services (factories)
     def error_detector(self) -> ErrorDetector:
@@ -94,7 +64,7 @@ class Container:
         Returns:
             New SessionManager instance
         """
-        return SessionManager(self.terminal_backend())
+        return SessionManager()
 
     def command_runner(self) -> CommandRunner:
         """Get command runner service.
@@ -163,14 +133,3 @@ class Container:
         """
         return RetentionPolicy(keep_last_n=self._config.output.keep_last_n)
 
-    def build_cleaner(self) -> BuildCleaner:
-        """Get build cleaner service.
-
-        Returns:
-            New BuildCleaner instance
-        """
-        return BuildCleaner(
-            repository=self.repository(),
-            filesystem=self.filesystem(),
-            policy=self.retention_policy(),
-        )

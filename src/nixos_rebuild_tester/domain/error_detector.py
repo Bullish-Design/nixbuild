@@ -24,7 +24,11 @@ class ErrorDetector:
         r"assertion failed.*",
     ]
 
-    def extract_from_frames(self, frames: list[str]) -> ErrorMessage | None:
+    def extract_from_frames(
+        self,
+        frames: list[str],
+        timestamp: Timestamp | None = None,
+    ) -> ErrorMessage | None:
         """Extract error message from terminal frames.
 
         Searches the last frame for error patterns and returns
@@ -32,12 +36,15 @@ class ErrorDetector:
 
         Args:
             frames: List of terminal frame content strings
+            timestamp: Optional timestamp for error (defaults to current time)
 
         Returns:
             ErrorMessage if error found, None otherwise
         """
         if not frames:
             return None
+
+        ts = timestamp or Timestamp()
 
         # Search last frame for error patterns
         last_frame = frames[-1]
@@ -49,22 +56,29 @@ class ErrorDetector:
                 return ErrorMessage(
                     content=content,
                     source=ErrorSource.FRAME,
-                    timestamp=Timestamp(),
+                    timestamp=ts,
                 )
 
         return None
 
-    def extract_from_exit_code(self, code: int) -> ErrorMessage | None:
+    def extract_from_exit_code(
+        self,
+        code: int,
+        timestamp: Timestamp | None = None,
+    ) -> ErrorMessage | None:
         """Extract error message from exit code.
 
         Args:
             code: Process exit code
+            timestamp: Optional timestamp for error (defaults to current time)
 
         Returns:
             ErrorMessage if code indicates error, None for success
         """
         if code == 0:
             return None
+
+        ts = timestamp or Timestamp()
 
         # Map common exit codes to messages
         messages = {
@@ -82,20 +96,27 @@ class ErrorDetector:
         return ErrorMessage(
             content=content,
             source=ErrorSource.EXIT_CODE,
-            timestamp=Timestamp(),
+            timestamp=ts,
         )
 
-    def extract_from_stderr(self, stderr: str) -> ErrorMessage | None:
+    def extract_from_stderr(
+        self,
+        stderr: str,
+        timestamp: Timestamp | None = None,
+    ) -> ErrorMessage | None:
         """Extract error message from stderr output.
 
         Args:
             stderr: Standard error output
+            timestamp: Optional timestamp for error (defaults to current time)
 
         Returns:
             ErrorMessage if error found, None otherwise
         """
         if not stderr or not stderr.strip():
             return None
+
+        ts = timestamp or Timestamp()
 
         # Search for error patterns
         for pattern in self.ERROR_PATTERNS:
@@ -105,7 +126,7 @@ class ErrorDetector:
                 return ErrorMessage(
                     content=content,
                     source=ErrorSource.STDERR,
-                    timestamp=Timestamp(),
+                    timestamp=ts,
                 )
 
         # If no pattern matched but stderr has content, use first line
@@ -113,7 +134,7 @@ class ErrorDetector:
         return ErrorMessage(
             content=first_line,
             source=ErrorSource.STDERR,
-            timestamp=Timestamp(),
+            timestamp=ts,
         )
 
     def extract_best_error(
@@ -121,6 +142,7 @@ class ErrorDetector:
         exit_code: int,
         frames: list[str] | None = None,
         stderr: str | None = None,
+        timestamp: Timestamp | None = None,
     ) -> ErrorMessage | None:
         """Extract the most relevant error from available sources.
 
@@ -130,6 +152,7 @@ class ErrorDetector:
             exit_code: Process exit code
             frames: Optional terminal frames
             stderr: Optional stderr output
+            timestamp: Optional timestamp for error (defaults to current time)
 
         Returns:
             Best available error message, or None if no error
@@ -139,15 +162,15 @@ class ErrorDetector:
 
         # Try frames first (most detailed)
         if frames:
-            frame_error = self.extract_from_frames(frames)
+            frame_error = self.extract_from_frames(frames, timestamp)
             if frame_error:
                 return frame_error
 
         # Try stderr next
         if stderr:
-            stderr_error = self.extract_from_stderr(stderr)
+            stderr_error = self.extract_from_stderr(stderr, timestamp)
             if stderr_error:
                 return stderr_error
 
         # Fall back to exit code
-        return self.extract_from_exit_code(exit_code)
+        return self.extract_from_exit_code(exit_code, timestamp)

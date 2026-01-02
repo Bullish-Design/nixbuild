@@ -20,7 +20,7 @@ class LocalFileSystem:
     """
 
     # Directory operations
-    async def create_directory(self, path: Path) -> Path:
+    def create_directory(self, path: Path) -> Path:
         """Create directory and parents.
 
         Args:
@@ -38,7 +38,7 @@ class LocalFileSystem:
         except Exception as e:
             raise DirectoryCreationFailed(f"Failed to create directory {path}: {e}") from e
 
-    async def delete_directory(self, path: Path) -> None:
+    def delete_directory(self, path: Path) -> None:
         """Recursively delete directory.
 
         Args:
@@ -53,7 +53,7 @@ class LocalFileSystem:
         except Exception as e:
             raise FileSystemError(f"Failed to delete directory {path}: {e}") from e
 
-    async def list_directories(self, base: Path, pattern: str) -> list[Path]:
+    def list_directories(self, base: Path, pattern: str) -> list[Path]:
         """List directories matching pattern.
 
         Args:
@@ -82,7 +82,7 @@ class LocalFileSystem:
         return path.exists() and path.is_dir()
 
     # File operations
-    async def write_text(self, path: Path, content: str) -> None:
+    def write_text(self, path: Path, content: str) -> None:
         """Write text to file.
 
         Args:
@@ -97,7 +97,7 @@ class LocalFileSystem:
         except Exception as e:
             raise PathNotWritable(f"Failed to write to {path}: {e}") from e
 
-    async def read_text(self, path: Path) -> str:
+    def read_text(self, path: Path) -> str:
         """Read text from file.
 
         Args:
@@ -116,7 +116,7 @@ class LocalFileSystem:
         except Exception as e:
             raise FileSystemError(f"Failed to read {path}: {e}") from e
 
-    async def write_bytes(self, path: Path, content: bytes) -> None:
+    def write_bytes(self, path: Path, content: bytes) -> None:
         """Write bytes to file.
 
         Args:
@@ -131,7 +131,7 @@ class LocalFileSystem:
         except Exception as e:
             raise PathNotWritable(f"Failed to write bytes to {path}: {e}") from e
 
-    async def read_bytes(self, path: Path) -> bytes:
+    def read_bytes(self, path: Path) -> bytes:
         """Read bytes from file.
 
         Args:
@@ -150,7 +150,7 @@ class LocalFileSystem:
         except Exception as e:
             raise FileSystemError(f"Failed to read bytes from {path}: {e}") from e
 
-    async def delete_file(self, path: Path) -> None:
+    def delete_file(self, path: Path) -> None:
         """Delete file.
 
         Args:
@@ -177,7 +177,7 @@ class LocalFileSystem:
         return path.exists() and path.is_file()
 
     # Metadata
-    async def get_modified_time(self, path: Path) -> float:
+    def get_modified_time(self, path: Path) -> float:
         """Get modification timestamp.
 
         Args:
@@ -196,7 +196,7 @@ class LocalFileSystem:
         except Exception as e:
             raise FileSystemError(f"Failed to get modification time for {path}: {e}") from e
 
-    async def get_size(self, path: Path) -> int:
+    def get_size(self, path: Path) -> int:
         """Get file size.
 
         Args:

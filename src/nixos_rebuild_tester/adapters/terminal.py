@@ -9,6 +9,8 @@ from terminal_state.models.config import SessionConfig
 from terminal_state.models.recording import Recording
 from terminal_state.session.terminal import TerminalSession as TSSession
 
+from nixos_rebuild_tester.domain.value_objects import TerminalDimensions
+
 
 class TmuxTerminalAdapter:
     """Adapter for terminal-state tmux backend."""
@@ -95,13 +97,13 @@ class TmuxTerminalAdapter:
         return self._session.capture().content
 
     @property
-    def dimensions(self) -> tuple[int, int]:
+    def dimensions(self) -> TerminalDimensions:
         """Return terminal dimensions.
 
         Returns:
-            Tuple of (width, height)
+            TerminalDimensions object
         """
-        return (self._width, self._height)
+        return TerminalDimensions(width=self._width, height=self._height)
 
     @property
     def frames(self) -> list[str]:

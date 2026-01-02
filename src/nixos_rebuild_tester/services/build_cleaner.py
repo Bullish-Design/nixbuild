@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from nixos_rebuild_tester.domain.protocols import BuildRepository, FileSystem
     from nixos_rebuild_tester.domain.value_objects import BuildId
-    from nixos_rebuild_tester.services.storage.retention_policy import RetentionPolicy
+    from nixos_rebuild_tester.services.retention_policy import RetentionPolicy
 
 
 class BuildCleaner:
