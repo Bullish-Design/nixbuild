@@ -9,8 +9,8 @@ from pathlib import Path
 
 import click
 
-from nixos_rebuild_tester.models import Config, OutputConfig, RebuildAction, RebuildConfig, RecordingConfig
-from nixos_rebuild_tester.runner import RebuildRunner
+from nixos_rebuild_tester.application import Application
+from nixos_rebuild_tester.domain.models import Config, OutputConfig, RebuildAction, RebuildConfig, RecordingConfig
 
 
 @click.group()
@@ -59,14 +59,15 @@ def run(
         ),
     )
 
-    runner = RebuildRunner(config)
+    # Create application
+    app = Application(config)
 
     click.echo(f"Starting NixOS rebuild ({action}) at {config.rebuild.flake_ref}")
     click.echo(f"Output directory: {config.output.base_dir}")
     click.echo()
 
     # Run async function in sync context
-    result = asyncio.run(runner.run())
+    result = asyncio.run(app.run_rebuild())
 
     # Display results
     if result.success:
@@ -76,16 +77,16 @@ def run(
         if result.error_message:
             click.echo(f"Error: {result.error_message}")
 
-    click.echo(f"\nDuration: {result.duration_seconds:.1f}s")
+    click.echo(f"\nDuration: {result.duration.formatted}")
     click.echo(f"Exit code: {result.exit_code}")
     click.echo(f"\nOutput saved to: {result.output_dir}")
-    click.echo(f"  Log: {result.log_file.name}")
-    if result.cast_file:
-        click.echo(f"  Recording: {result.cast_file.name}")
-    if result.screenshot_file:
-        click.echo(f"  Screenshot: {result.screenshot_file.name}")
-    if result.gif_file:
-        click.echo(f"  GIF: {result.gif_file.name}")
+    click.echo(f"  Log: {result.artifacts.log_file.name}")
+    if result.artifacts.cast_file:
+        click.echo(f"  Recording: {result.artifacts.cast_file.name}")
+    if result.artifacts.screenshot_file:
+        click.echo(f"  Screenshot: {result.artifacts.screenshot_file.name}")
+    if result.artifacts.gif_file:
+        click.echo(f"  GIF: {result.artifacts.gif_file.name}")
 
     # Exit with same code as rebuild
     sys.exit(0 if result.success else result.exit_code)
@@ -125,8 +126,22 @@ def list_builds(output_dir: str, limit: int) -> None:
 
             click.secho(f"{status} {build_dir.name}", fg=color, bold=True)
             click.echo(f"  Action: {metadata['action']}")
-            click.echo(f"  Duration: {metadata['duration_seconds']:.1f}s")
-            click.echo(f"  Timestamp: {metadata['timestamp']}")
+
+            # Handle both old and new format
+            if isinstance(metadata.get('duration'), dict):
+                duration = metadata['duration'].get('seconds', 0)
+            else:
+                duration = metadata.get('duration_seconds', 0)
+            click.echo(f"  Duration: {duration:.1f}s")
+
+            # Handle both old and new timestamp format
+            timestamp = metadata.get('timestamp', {})
+            if isinstance(timestamp, dict):
+                timestamp_str = timestamp.get('value', timestamp.get('iso_format', 'Unknown'))
+            else:
+                timestamp_str = timestamp
+            click.echo(f"  Timestamp: {timestamp_str}")
+
             if metadata.get("error_message"):
                 click.echo(f"  Error: {metadata['error_message']}")
             click.echo()

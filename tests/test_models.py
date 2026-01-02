@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from nixos_rebuild_tester.models import Config, RebuildAction, RebuildConfig, RecordingConfig
+from nixos_rebuild_tester.domain.models import Config, RebuildAction, RebuildConfig, RecordingConfig
 
 
 def test_config_defaults():
