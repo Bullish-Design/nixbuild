@@ -35,6 +35,13 @@ from nixos_rebuild_tester.domain.models import (
     RebuildSession,
     RecordingConfig,
     SessionState,
+    TestResult,
+)
+from nixos_rebuild_tester.domain.neovim_models import (
+    KeyModifier,
+    KeyStroke,
+    NeovimCommand,
+    NeovimTestConfig,
 )
 from nixos_rebuild_tester.domain.protocols import (
     IArtifactExporter,
@@ -64,6 +71,12 @@ __all__ = [
     "RebuildSession",
     "RecordingConfig",
     "SessionState",
+    "TestResult",
+    # Neovim Models
+    "KeyModifier",
+    "KeyStroke",
+    "NeovimCommand",
+    "NeovimTestConfig",
     # Protocols
     "IArtifactExporter",
     "IFileSystem",
