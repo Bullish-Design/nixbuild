@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Annotated
@@ -43,6 +44,18 @@ class BuildArtifacts(BaseModel):
         return [f for f in [self.log_file, self.cast_file, self.screenshot_file, self.gif_file] if f is not None]
 
 
+class TestResult(BaseModel):
+    """Generic test execution result."""
+
+    success: bool = Field(description="Whether test succeeded")
+    exit_code: int = Field(description="Exit code (0 for success)")
+    timestamp: datetime = Field(description="Test start time")
+    duration_seconds: float = Field(description="Test duration")
+    error_message: str | None = Field(default=None, description="Error if failed")
+    output_dir: Path = Field(description="Output directory")
+    metadata: dict[str, str] = Field(default_factory=dict, description="Test-specific metadata")
+
+
 class RebuildResult(BaseModel):
     """Immutable result of a rebuild operation."""
 
@@ -62,6 +75,34 @@ class RebuildResult(BaseModel):
     def metadata_file(self) -> Path:
         """Return path to metadata file."""
         return self.output_dir / "metadata.json"
+
+    @classmethod
+    def from_test_result(
+        cls,
+        result: TestResult,
+        action: RebuildAction,
+        artifacts: BuildArtifacts,
+    ) -> RebuildResult:
+        """Create RebuildResult from generic TestResult.
+
+        Args:
+            result: Generic test result
+            action: Rebuild action that was performed
+            artifacts: Build artifacts
+
+        Returns:
+            RebuildResult with rebuild-specific metadata
+        """
+        return cls(
+            success=result.success,
+            exit_code=result.exit_code,
+            timestamp=Timestamp(value=result.timestamp),
+            duration=Duration(seconds=result.duration_seconds),
+            action=action,
+            output_dir=result.output_dir,
+            artifacts=artifacts,
+            error_message=result.error_message,
+        )
 
 
 class RecordingConfig(BaseModel):
