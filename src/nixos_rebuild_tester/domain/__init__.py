@@ -2,14 +2,39 @@
 
 from __future__ import annotations
 
+from nixos_rebuild_tester.domain.exceptions import (
+    BuildFailed,
+    BuildNotFound,
+    CorruptedMetadata,
+    DirectoryCreationFailed,
+    ExportError,
+    ExportFailed,
+    ExporterNotFound,
+    ExecutionError,
+    ExecutionTimeout,
+    FileSystemError,
+    InsufficientPermissions,
+    InvalidFlakeRef,
+    PathNotFound,
+    PathNotWritable,
+    RebuildTesterError,
+    SessionCrashed,
+    SessionCreationFailed,
+    SessionError,
+    SessionTimeout,
+    StorageError,
+)
 from nixos_rebuild_tester.domain.models import (
     BuildArtifacts,
     Config,
+    ExecutionOutcome,
     OutputConfig,
     RebuildAction,
     RebuildConfig,
     RebuildResult,
+    RebuildSession,
     RecordingConfig,
+    SessionState,
 )
 from nixos_rebuild_tester.domain.protocols import (
     IArtifactExporter,
@@ -17,24 +42,60 @@ from nixos_rebuild_tester.domain.protocols import (
     IMetadataStore,
     ITerminalSession,
 )
-from nixos_rebuild_tester.domain.value_objects import Duration, TerminalDimensions, Timestamp
+from nixos_rebuild_tester.domain.value_objects import (
+    BuildId,
+    Duration,
+    ErrorMessage,
+    ErrorSource,
+    OutputDirectory,
+    TerminalDimensions,
+    Timestamp,
+)
 
 __all__ = [
     # Models
     "BuildArtifacts",
     "Config",
+    "ExecutionOutcome",
     "OutputConfig",
     "RebuildAction",
     "RebuildConfig",
     "RebuildResult",
+    "RebuildSession",
     "RecordingConfig",
+    "SessionState",
     # Protocols
     "IArtifactExporter",
     "IFileSystem",
     "IMetadataStore",
     "ITerminalSession",
     # Value Objects
+    "BuildId",
     "Duration",
+    "ErrorMessage",
+    "ErrorSource",
+    "OutputDirectory",
     "TerminalDimensions",
     "Timestamp",
+    # Exceptions
+    "BuildFailed",
+    "BuildNotFound",
+    "CorruptedMetadata",
+    "DirectoryCreationFailed",
+    "ExportError",
+    "ExportFailed",
+    "ExporterNotFound",
+    "ExecutionError",
+    "ExecutionTimeout",
+    "FileSystemError",
+    "InsufficientPermissions",
+    "InvalidFlakeRef",
+    "PathNotFound",
+    "PathNotWritable",
+    "RebuildTesterError",
+    "SessionCrashed",
+    "SessionCreationFailed",
+    "SessionError",
+    "SessionTimeout",
+    "StorageError",
 ]
