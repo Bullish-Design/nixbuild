@@ -1,13 +1,14 @@
-"""Executes rebuild commands in terminal sessions."""
+# src/nixos_rebuild_tester/services/command_runner.py
+"""Builds and executes rebuild commands."""
 
 from __future__ import annotations
 
 import time
 from typing import TYPE_CHECKING
 
-from nixos_rebuild_tester.domain.exceptions import ExecutionTimeout, SessionTimeout
 from nixos_rebuild_tester.domain.error_detector import ErrorDetector
-from nixos_rebuild_tester.domain.value_objects import Duration, ErrorSource
+from nixos_rebuild_tester.domain.exceptions import ExecutionTimeout
+from nixos_rebuild_tester.domain.value_objects import Duration
 
 if TYPE_CHECKING:
     from nixos_rebuild_tester.domain.models import ExecutionOutcome, RebuildConfig
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
 
 
 class CommandRunner:
-    """Executes rebuild commands in terminal sessions.
+    """Builds and executes rebuild commands.
 
     Responsible for building command strings and executing them,
     detecting errors in the output.
@@ -59,7 +60,7 @@ class CommandRunner:
         # Wait for completion
         try:
             exit_code = await session.wait_for_completion(config.timeout_seconds)
-        except SessionTimeout as e:
+        except Exception as e:
             raise ExecutionTimeout(f"Command timed out after {config.timeout_seconds}s") from e
 
         # Calculate duration
@@ -100,4 +101,27 @@ class CommandRunner:
             config.flake_ref,
         ]
 
+        # Add --no-write-lock-file for remote flakes
+        if self._is_remote_flake(config.flake_ref):
+            parts.append("--no-write-lock-file")
+
         return " ".join(parts)
+
+    def _is_remote_flake(self, flake_ref: str) -> bool:
+        """Check if flake reference is remote.
+
+        Args:
+            flake_ref: Flake reference string
+
+        Returns:
+            True if flake is remote (github:, git+https:, etc.)
+        """
+        remote_prefixes = (
+            "github:",
+            "gitlab:",
+            "git+https:",
+            "git+ssh:",
+            "https:",
+            "tarball+https:",
+        )
+        return flake_ref.startswith(remote_prefixes)
