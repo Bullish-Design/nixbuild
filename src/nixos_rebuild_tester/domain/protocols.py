@@ -7,7 +7,8 @@ from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from nixos_rebuild_tester.domain.models import RebuildResult
-    from nixos_rebuild_tester.domain.value_objects import BuildId, TerminalDimensions
+    from nixos_rebuild_tester.domain.value_objects import BuildId
+    from terminal_state import Recording
 
 
 class TerminalSession(Protocol):
@@ -18,14 +19,6 @@ class TerminalSession(Protocol):
 
         Args:
             command: Command string to execute
-        """
-        ...
-
-    async def capture_frame(self) -> str:
-        """Capture current terminal state.
-
-        Returns:
-            Terminal content as text
         """
         ...
 
@@ -44,15 +37,6 @@ class TerminalSession(Protocol):
         ...
 
     @property
-    def dimensions(self) -> TerminalDimensions:
-        """Return terminal dimensions.
-
-        Returns:
-            TerminalDimensions object
-        """
-        ...
-
-    @property
     def frames(self) -> list[str]:
         """Return all captured frames.
 
@@ -61,44 +45,13 @@ class TerminalSession(Protocol):
         """
         ...
 
-
-class TerminalConfig(Protocol):
-    """Configuration for terminal creation."""
-
     @property
-    def width(self) -> int:
-        """Terminal width in characters."""
+    def recording(self) -> Recording | None:
+        """Return recording object if available."""
         ...
 
-    @property
-    def height(self) -> int:
-        """Terminal height in lines."""
-        ...
-
-
-class TerminalBackend(Protocol):
-    """Abstract terminal session management."""
-
-    async def create_session(self, config: TerminalConfig) -> TerminalSession:
-        """Create new terminal session.
-
-        Args:
-            config: Terminal configuration
-
-        Returns:
-            New terminal session
-
-        Raises:
-            SessionCreationFailed: If session creation fails
-        """
-        ...
-
-    async def destroy_session(self, session: TerminalSession) -> None:
-        """Clean up terminal session.
-
-        Args:
-            session: Session to destroy
-        """
+    async def close(self) -> None:
+        """Close the terminal session."""
         ...
 
 

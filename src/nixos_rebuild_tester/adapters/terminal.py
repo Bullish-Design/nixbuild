@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import Any
+from uuid import uuid4
 
 from terminal_state import Recording, TerminalSession as TerminalStateSession
 
-from nixos_rebuild_tester.domain.value_objects import TerminalDimensions
-
+from nixos_rebuild_tester.domain.exceptions import SessionTimeout
 
 class TmuxTerminalAdapter:
     """Adapter for terminal-state tmux backend."""
+
+    _exit_marker_prefix = "__nrt_exit_code__"
 
     def __init__(self, width: int, height: int):
         """Initialize terminal adapter.
@@ -25,6 +28,7 @@ class TmuxTerminalAdapter:
         self._session: TerminalStateSession | None = None
         self._frames: list[str] = []
         self._recording: Recording | None = None
+        self._exit_marker: str | None = None
 
     def __enter__(self) -> TmuxTerminalAdapter:
         """Start terminal session context."""
@@ -35,71 +39,52 @@ class TmuxTerminalAdapter:
         """Clean up terminal session."""
         if self._session:
             self._session.destroy()
+            self._session = None
 
-    async def execute(self, command: str, timeout: int) -> int:
-        """Execute command with periodic frame capture.
-
-        Args:
-            command: Command to execute
-            timeout: Maximum execution time in seconds
-
-        Returns:
-            Exit code (0 for success, 124 for timeout, 1 for error)
-        """
+    async def send_command(self, command: str) -> None:
+        """Send command to terminal session with exit marker."""
         if not self._session:
             raise RuntimeError("Session not started - use context manager")
 
-        # Send command (record=True adds frame to recording)
-        self._session.send_command(command, record=True)
+        self._frames = []
+        self._recording = None
 
-        # Wait for output to appear with timeout
-        try:
-            if not self._session.expect_text(
-                r"(building|activating|copying|warning|error|failed)",
-                timeout=timeout,
-            ):
-                return 124  # Timeout exit code
+        marker = f"{self._exit_marker_prefix}{uuid4().hex}"
+        self._exit_marker = marker
+        marked_command = f"{command}; printf '\\n{marker}%s\\n' $?"
 
-            # Let output settle
-            await asyncio.sleep(2)
+        await asyncio.to_thread(self._session.send_command, marked_command, True)
 
-            # Capture final state
-            final_frame = self._session.capture()
-            if self._session.recording:
-                self._session.recording.add_frame(final_frame)
-                self._recording = self._session.recording
-
-            # Store frames
-            if self._session.recording:
-                self._frames = [f.content for f in self._session.recording.frames]
-
-            # Check for errors in output
-            if "error" in final_frame.content.lower() or "failed" in final_frame.content.lower():
-                return 1
-
-            return 0
-
-        except Exception:
-            return 1
-
-    def capture_frame(self) -> str:
-        """Capture current terminal state.
-
-        Returns:
-            Terminal content as text
-        """
+    async def wait_for_completion(self, timeout: int) -> int:
+        """Wait for command completion and return exit code."""
         if not self._session:
-            raise RuntimeError("Session not started")
-        return self._session.capture().content
+            raise RuntimeError("Session not started - use context manager")
+        if not self._exit_marker:
+            raise RuntimeError("No command sent - call send_command first")
 
-    @property
-    def dimensions(self) -> TerminalDimensions:
-        """Return terminal dimensions.
+        pattern = rf"{re.escape(self._exit_marker)}(?P<exit_code>\d+)"
+        completed = await asyncio.to_thread(
+            self._session.expect_text,
+            pattern,
+            timeout=timeout,
+        )
 
-        Returns:
-            TerminalDimensions object
-        """
-        return TerminalDimensions(width=self._width, height=self._height)
+        if not completed:
+            raise SessionTimeout(f"Command did not complete within {timeout}s")
+
+        await asyncio.sleep(0.2)
+        final_frame = await asyncio.to_thread(self._session.capture)
+        self._update_recording(final_frame)
+
+        exit_code = self._extract_exit_code(pattern)
+        return exit_code
+
+    async def close(self) -> None:
+        """Close the terminal session."""
+        if not self._session:
+            return
+        await asyncio.to_thread(self._session.destroy)
+        self._session = None
 
     @property
     def frames(self) -> list[str]:
@@ -118,3 +103,18 @@ class TmuxTerminalAdapter:
             Recording object or None if no recording
         """
         return self._recording
+
+    def _update_recording(self, final_frame: Any) -> None:
+        if self._session and self._session.recording:
+            self._session.recording.add_frame(final_frame)
+            self._recording = self._session.recording
+            self._frames = [frame.content for frame in self._session.recording.frames]
+        else:
+            self._frames = [getattr(final_frame, "content", str(final_frame))]
+
+    def _extract_exit_code(self, pattern: str) -> int:
+        for frame in reversed(self._frames):
+            match = re.search(pattern, frame)
+            if match:
+                return int(match.group("exit_code"))
+        return 1

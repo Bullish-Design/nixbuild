@@ -29,7 +29,7 @@ class BuildDirectoryManager:
         self._fs = filesystem
         self._base_dir = base_directory.expanduser().absolute()
 
-    async def create_for_build(self, build_id: BuildId) -> OutputDirectory:
+    def create_for_build(self, build_id: BuildId) -> OutputDirectory:
         """Create output directory for build.
 
         Args:

@@ -133,3 +133,14 @@ class Container:
         """
         return RetentionPolicy(keep_last_n=self._config.output.keep_last_n)
 
+    def build_cleaner(self) -> BuildCleaner:
+        """Get build cleaner service.
+
+        Returns:
+            New BuildCleaner instance
+        """
+        return BuildCleaner(
+            filesystem=self.filesystem(),
+            base_directory=self._config.output.base_dir,
+            keep_last_n=self._config.output.keep_last_n,
+        )
