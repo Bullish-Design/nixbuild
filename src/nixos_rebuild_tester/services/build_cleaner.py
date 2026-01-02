@@ -2,60 +2,66 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from nixos_rebuild_tester.domain.protocols import BuildRepository, FileSystem
-    from nixos_rebuild_tester.domain.value_objects import BuildId
-    from nixos_rebuild_tester.services.retention_policy import RetentionPolicy
+    from nixos_rebuild_tester.domain.protocols import FileSystem
 
 
 class BuildCleaner:
     """Removes old build data.
 
-    Deletes build directories and metadata based on retention policy.
+    Deletes build directories based on retention policy.
     """
 
     def __init__(
         self,
-        repository: BuildRepository,
         filesystem: FileSystem,
-        policy: RetentionPolicy,
+        base_directory: Path,
+        keep_last_n: int | None,
     ):
         """Initialize build cleaner.
 
         Args:
-            repository: Build repository
             filesystem: Filesystem implementation
-            policy: Retention policy
+            base_directory: Base directory containing rebuild outputs
+            keep_last_n: Number of builds to keep (None = keep all)
         """
-        self._repository = repository
         self._filesystem = filesystem
-        self._policy = policy
+        self._base_dir = base_directory.expanduser().absolute()
+        self._keep_last_n = keep_last_n
 
-    async def cleanup(self, keep_last_n: int | None = None) -> list[BuildId]:
+    async def cleanup(self, keep_last_n: int | None = None) -> list[Path]:
         """Clean up old builds based on policy.
 
         Args:
             keep_last_n: Optional override for retention count
 
         Returns:
-            List of deleted BuildIds
+            List of deleted build directories
         """
-        # Get all builds from repository
-        all_builds = await self._repository.find_recent(limit=10000)  # Large limit
+        keep_count = keep_last_n if keep_last_n is not None else self._keep_last_n
+        if keep_count is None:
+            return []
 
-        # Determine which to delete
-        to_delete = self._policy.select_for_deletion(all_builds, keep_last_n)
+        rebuild_dirs = self._filesystem.list_directories(self._base_dir, "rebuild-*")
+        if not rebuild_dirs:
+            return []
 
-        # Delete each build
-        deleted = []
-        for build_id in to_delete:
+        sorted_dirs = sorted(
+            rebuild_dirs,
+            key=lambda path: (self._filesystem.get_modified_time(path), path.name),
+            reverse=True,
+        )
+
+        to_delete = sorted_dirs[keep_count:]
+        deleted: list[Path] = []
+        for directory in to_delete:
             try:
-                await self._repository.delete(build_id)
-                deleted.append(build_id)
+                self._filesystem.delete_directory(directory)
+                deleted.append(directory)
             except Exception:
-                # Log error but continue with other deletions
                 continue
 
         return deleted

@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from nixos_rebuild_tester.adapters.terminal import TmuxTerminalAdapter
 from nixos_rebuild_tester.container import Container
 from nixos_rebuild_tester.domain.models import (
-    BuildArtifacts,
     Config,
     RebuildResult,
     RebuildSession,
 )
-from nixos_rebuild_tester.domain.value_objects import Duration, ErrorMessage, ErrorSource, OutputDirectory, Timestamp
+from nixos_rebuild_tester.domain.value_objects import ErrorMessage, ErrorSource
 
 
 class Application:
@@ -41,7 +37,7 @@ class Application:
         session = RebuildSession.create(self.config.rebuild)
 
         # Create output directory
-        output_dir = self._container.directory_manager().create_for_build(session.session_id)
+        output_dir = await self._container.directory_manager().create_for_build(session.session_id)
 
         try:
             # Start session
@@ -65,5 +61,11 @@ class Application:
                 source=ErrorSource.EXCEPTION,
             )
             result = session.fail(error, output_dir)
+
+        try:
+            await self._container.build_cleaner().cleanup()
+        except Exception:
+            # Cleanup is best-effort, do not block result
+            pass
 
         return result
