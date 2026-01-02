@@ -29,7 +29,7 @@ class BuildDirectoryManager:
         self._fs = filesystem
         self._base_dir = base_directory.expanduser().absolute()
 
-    async def create_for_build(self, build_id: BuildId) -> OutputDirectory:
+    def create_for_build(self, build_id: BuildId) -> OutputDirectory:
         """Create output directory for build.
 
         Args:
@@ -43,11 +43,11 @@ class BuildDirectoryManager:
         """
         try:
             # Ensure base directory exists
-            await self.ensure_base_directory()
+            self.ensure_base_directory()
 
             # Create build-specific directory
             dir_path = self._base_dir / build_id.filesystem_name
-            created_path = await self._fs.create_directory(dir_path)
+            created_path = self._fs.create_directory(dir_path)
 
             return OutputDirectory(
                 path=created_path,
@@ -59,7 +59,7 @@ class BuildDirectoryManager:
                 f"Failed to create directory for build {build_id.filesystem_name}: {e}"
             ) from e
 
-    async def ensure_base_directory(self) -> Path:
+    def ensure_base_directory(self) -> Path:
         """Ensure base directory exists.
 
         Returns:
@@ -69,7 +69,7 @@ class BuildDirectoryManager:
             DirectoryCreationFailed: If creation fails
         """
         try:
-            return await self._fs.create_directory(self._base_dir)
+            return self._fs.create_directory(self._base_dir)
         except Exception as e:
             raise DirectoryCreationFailed(f"Failed to create base directory {self._base_dir}: {e}") from e
 

@@ -41,8 +41,7 @@ class Application:
         session = RebuildSession.create(self.config.rebuild)
 
         # Create output directory
-        output_dir_path = self._container.directory_manager().create_for_build(session.session_id)
-        output_dir = OutputDirectory(path=output_dir_path, build_id=session.session_id)
+        output_dir = self._container.directory_manager().create_for_build(session.session_id)
 
         try:
             # Start session
