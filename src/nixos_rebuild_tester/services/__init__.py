@@ -8,9 +8,6 @@ from nixos_rebuild_tester.services.directory_manager import BuildDirectoryManage
 from nixos_rebuild_tester.services.export_pipeline import ExportPipeline
 from nixos_rebuild_tester.services.exporter_registry import ExporterRegistry
 from nixos_rebuild_tester.services.frame_recorder import FrameRecorder
-from nixos_rebuild_tester.services.interactive_test_runner import InteractiveTestRunner
-from nixos_rebuild_tester.services.neovim_runner import NeovimTestRunner
-from nixos_rebuild_tester.services.nix_rebuild_runner import NixRebuildRunner
 from nixos_rebuild_tester.services.rebuild_executor import RebuildExecutor
 from nixos_rebuild_tester.services.retention_policy import RetentionPolicy
 from nixos_rebuild_tester.services.session_manager import SessionManager
@@ -22,9 +19,6 @@ __all__ = [
     "ExportPipeline",
     "ExporterRegistry",
     "FrameRecorder",
-    "InteractiveTestRunner",
-    "NeovimTestRunner",
-    "NixRebuildRunner",
     "RebuildExecutor",
     "RetentionPolicy",
     "SessionManager",
