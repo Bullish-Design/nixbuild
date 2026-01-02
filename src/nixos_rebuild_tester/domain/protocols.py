@@ -138,21 +138,15 @@ class ArtifactReference(Protocol):
 class ArtifactExporter(Protocol):
     """Export session data to specific format."""
 
-    async def export(
-        self,
-        frames: list[str],
-        output_path: Path,
-        metadata: ExportMetadata,
-    ) -> ArtifactReference:
-        """Export frames to artifact.
+    async def export(self, session: TerminalSession, output_path: Path) -> Path:
+        """Export session to artifact.
 
         Args:
-            frames: Terminal frames to export
+            session: Terminal session to export from
             output_path: Where to write artifact
-            metadata: Export metadata
 
         Returns:
-            Reference to created artifact
+            Path to created artifact
 
         Raises:
             ExportFailed: If export fails
@@ -212,7 +206,7 @@ class FileSystem(Protocol):
     """Complete filesystem abstraction."""
 
     # Directory operations
-    async def create_directory(self, path: Path) -> Path:
+    def create_directory(self, path: Path) -> Path:
         """Create directory and parents.
 
         Args:
@@ -226,7 +220,7 @@ class FileSystem(Protocol):
         """
         ...
 
-    async def delete_directory(self, path: Path) -> None:
+    def delete_directory(self, path: Path) -> None:
         """Recursively delete directory.
 
         Args:
@@ -237,7 +231,7 @@ class FileSystem(Protocol):
         """
         ...
 
-    async def list_directories(self, base: Path, pattern: str) -> list[Path]:
+    def list_directories(self, base: Path, pattern: str) -> list[Path]:
         """List directories matching pattern.
 
         Args:
@@ -261,7 +255,7 @@ class FileSystem(Protocol):
         ...
 
     # File operations
-    async def write_text(self, path: Path, content: str) -> None:
+    def write_text(self, path: Path, content: str) -> None:
         """Write text to file.
 
         Args:
@@ -273,7 +267,7 @@ class FileSystem(Protocol):
         """
         ...
 
-    async def read_text(self, path: Path) -> str:
+    def read_text(self, path: Path) -> str:
         """Read text from file.
 
         Args:
@@ -287,7 +281,7 @@ class FileSystem(Protocol):
         """
         ...
 
-    async def write_bytes(self, path: Path, content: bytes) -> None:
+    def write_bytes(self, path: Path, content: bytes) -> None:
         """Write bytes to file.
 
         Args:
@@ -299,7 +293,7 @@ class FileSystem(Protocol):
         """
         ...
 
-    async def read_bytes(self, path: Path) -> bytes:
+    def read_bytes(self, path: Path) -> bytes:
         """Read bytes from file.
 
         Args:
@@ -313,7 +307,7 @@ class FileSystem(Protocol):
         """
         ...
 
-    async def delete_file(self, path: Path) -> None:
+    def delete_file(self, path: Path) -> None:
         """Delete file.
 
         Args:
@@ -336,7 +330,7 @@ class FileSystem(Protocol):
         ...
 
     # Metadata
-    async def get_modified_time(self, path: Path) -> float:
+    def get_modified_time(self, path: Path) -> float:
         """Get modification timestamp.
 
         Args:
@@ -350,7 +344,7 @@ class FileSystem(Protocol):
         """
         ...
 
-    async def get_size(self, path: Path) -> int:
+    def get_size(self, path: Path) -> int:
         """Get file size.
 
         Args:
@@ -363,10 +357,3 @@ class FileSystem(Protocol):
             PathNotFound: If path doesn't exist
         """
         ...
-
-
-# Legacy protocols for backward compatibility
-ITerminalSession = TerminalSession
-IArtifactExporter = ArtifactExporter
-IMetadataStore = BuildRepository
-IFileSystem = FileSystem

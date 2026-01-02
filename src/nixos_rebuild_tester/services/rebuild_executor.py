@@ -6,9 +6,9 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from nixos_rebuild_tester.domain.exceptions import ExecutionTimeout
-from nixos_rebuild_tester.services.execution.command_runner import CommandRunner
-from nixos_rebuild_tester.services.execution.frame_recorder import FrameRecorder
-from nixos_rebuild_tester.services.execution.session_manager import SessionManager
+from nixos_rebuild_tester.services.command_runner import CommandRunner
+from nixos_rebuild_tester.services.frame_recorder import FrameRecorder
+from nixos_rebuild_tester.services.session_manager import SessionManager
 
 if TYPE_CHECKING:
     from nixos_rebuild_tester.domain.models import ExecutionOutcome, RebuildSession

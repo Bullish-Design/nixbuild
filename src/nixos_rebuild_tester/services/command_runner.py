@@ -6,7 +6,7 @@ import time
 from typing import TYPE_CHECKING
 
 from nixos_rebuild_tester.domain.exceptions import ExecutionTimeout
-from nixos_rebuild_tester.domain.services.error_detector import ErrorDetector
+from nixos_rebuild_tester.domain.error_detector import ErrorDetector
 from nixos_rebuild_tester.domain.value_objects import Duration, ErrorSource
 
 if TYPE_CHECKING:

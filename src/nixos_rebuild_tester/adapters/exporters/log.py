@@ -6,13 +6,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from nixos_rebuild_tester.domain.protocols import ITerminalSession
+    from nixos_rebuild_tester.domain.protocols import TerminalSession
 
 
 class LogExporter:
     """Exports all frames as plain text log."""
 
-    async def export(self, session: ITerminalSession, output_path: Path) -> Path:
+    async def export(self, session: TerminalSession, output_path: Path) -> Path:
         """Export frames as text log.
 
         Args:
