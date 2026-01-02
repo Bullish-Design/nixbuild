@@ -147,68 +147,6 @@ def list_builds(output_dir: str, limit: int) -> None:
             click.echo()
 
 
-@cli.command()
-@click.argument("test_config_path", type=click.Path(exists=True))
-@click.option("--output-dir", type=click.Path(), default=None, help="Output directory for test results")
-def neovim(test_config_path: str, output_dir: str | None) -> None:
-    """Run neovim visual test from config file.
-
-    TEST_CONFIG_PATH should be a JSON file containing the neovim test configuration.
-
-    Example config structure:
-    {
-        "nvim_config_path": "~/.config/nvim",
-        "test_file": null,
-        "commands": [
-            {
-                "description": "Enter insert mode",
-                "keystrokes": [{"key": "i", "modifiers": []}],
-                "wait_for_completion": 1.0
-            }
-        ],
-        "timeout_seconds": 60.0,
-        "capture_interval": 0.5
-    }
-    """
-    from datetime import datetime
-
-    click.echo(f"Loading neovim test configuration from {test_config_path}")
-
-    # Load test config
-    config_path = Path(test_config_path)
-    with open(config_path) as f:
-        config_data = json.load(f)
-
-    from nixos_rebuild_tester.domain.neovim_models import NeovimTestConfig
-
-    try:
-        config = NeovimTestConfig(**config_data)
-    except Exception as e:
-        click.secho(f"✗ Invalid configuration: {e}", fg="red", bold=True)
-        sys.exit(1)
-
-    # Create output directory
-    if output_dir:
-        output = Path(output_dir)
-    else:
-        output = Path("neovim-tests") / f"test-{datetime.now():%Y%m%d-%H%M%S}"
-
-    output.mkdir(parents=True, exist_ok=True)
-
-    click.echo(f"Output directory: {output}")
-    click.echo(f"Running neovim test with {len(config.commands)} command sequences...")
-    click.echo()
-
-    # Note: Full implementation would integrate with terminal session
-    # For now, this is a placeholder that shows the structure
-    click.secho("✓ Neovim test command structure created", fg="green")
-    click.echo(f"  Config: {test_config_path}")
-    click.echo(f"  Output: {output}")
-    click.echo()
-    click.echo("Note: Full neovim test execution requires terminal session integration.")
-    click.echo("This feature is under development.")
-
-
 def main() -> None:
     """Entry point for CLI."""
     cli()
