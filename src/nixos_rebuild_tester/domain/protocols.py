@@ -7,7 +7,8 @@ from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from nixos_rebuild_tester.domain.models import RebuildResult
-    from nixos_rebuild_tester.domain.value_objects import BuildId, TerminalDimensions
+    from nixos_rebuild_tester.domain.value_objects import BuildId
+    from terminal_state import Recording
 
 
 class TerminalSession(Protocol):
@@ -18,14 +19,6 @@ class TerminalSession(Protocol):
 
         Args:
             command: Command string to execute
-        """
-        ...
-
-    async def capture_frame(self) -> str:
-        """Capture current terminal state.
-
-        Returns:
-            Terminal content as text
         """
         ...
 
@@ -44,21 +37,21 @@ class TerminalSession(Protocol):
         ...
 
     @property
-    def dimensions(self) -> TerminalDimensions:
-        """Return terminal dimensions.
-
-        Returns:
-            TerminalDimensions object
-        """
-        ...
-
-    @property
     def frames(self) -> list[str]:
         """Return all captured frames.
 
         Returns:
             List of frame content strings
         """
+        ...
+
+    @property
+    def recording(self) -> Recording | None:
+        """Return recording object if available."""
+        ...
+
+    async def close(self) -> None:
+        """Close the terminal session."""
         ...
 
 
