@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from nixos_rebuild_tester.domain.protocols import ArtifactExporter, ArtifactReference
-    from nixos_rebuild_tester.domain.value_objects import BuildId, OutputDirectory
+    from nixos_rebuild_tester.domain.protocols import ArtifactExporter, TerminalSession
+    from nixos_rebuild_tester.domain.value_objects import OutputDirectory
 
 
 class ExportPipeline:
@@ -28,29 +28,24 @@ class ExportPipeline:
 
     async def export_all(
         self,
-        frames: list[str],
+        session: TerminalSession,
         output_dir: OutputDirectory,
-        build_id: BuildId,
-    ) -> list[ArtifactReference]:
+    ) -> list[Path]:
         """Export all artifacts in parallel.
 
         Args:
-            frames: Terminal frames to export
+            session: Terminal session to export
             output_dir: Output directory
-            build_id: Build identifier for metadata
 
         Returns:
-            List of artifact references
+            List of exported artifact paths
         """
-        # Create export metadata
-        metadata = _ExportMetadata(build_id)
-
         # Create export tasks for all exporters
         export_tasks = []
         for exporter in self._exporters:
             # Determine output path based on exporter type
             output_path = self._get_output_path(exporter, output_dir)
-            task = exporter.export(frames, output_path, metadata)
+            task = exporter.export(session, output_path)
             export_tasks.append(task)
 
         # Run all exports concurrently
@@ -92,24 +87,3 @@ class ExportPipeline:
         else:
             return output_dir.path / f"artifact-{exporter_name}"
 
-
-class _ExportMetadata:
-    """Simple export metadata implementation."""
-
-    def __init__(self, build_id: BuildId):
-        """Initialize metadata.
-
-        Args:
-            build_id: Build identifier
-        """
-        self._build_id = build_id
-
-    @property
-    def timestamp(self) -> str:
-        """Export timestamp."""
-        return self._build_id.timestamp.iso_format
-
-    @property
-    def build_id(self) -> BuildId:
-        """Build identifier."""
-        return self._build_id

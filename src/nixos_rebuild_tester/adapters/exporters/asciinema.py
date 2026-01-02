@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from terminal_state.export.asciinema import AsciinemaExporter as TSAsciinemaExporter
 
 if TYPE_CHECKING:
-    from nixos_rebuild_tester.adapters.terminal import TmuxTerminalAdapter
+    from nixos_rebuild_tester.domain.protocols import TerminalSession
 
 
 class AsciinemaExporter:
@@ -18,7 +18,7 @@ class AsciinemaExporter:
         """Initialize exporter."""
         self._exporter = TSAsciinemaExporter()
 
-    async def export(self, session: TmuxTerminalAdapter, output_path: Path) -> Path:
+    async def export(self, session: TerminalSession, output_path: Path) -> Path:
         """Export asciinema cast file.
 
         Args:
@@ -28,6 +28,7 @@ class AsciinemaExporter:
         Returns:
             Path to created cast file
         """
-        if session.recording:
-            self._exporter.export(session.recording, output_path)
+        recording = getattr(session, "recording", None)
+        if recording:
+            self._exporter.export(recording, output_path)
         return output_path

@@ -12,6 +12,7 @@ from nixos_rebuild_tester.services.session_manager import SessionManager
 
 if TYPE_CHECKING:
     from nixos_rebuild_tester.domain.models import ExecutionOutcome, RebuildSession
+    from nixos_rebuild_tester.domain.protocols import TerminalSession
 
 
 class RebuildExecutor:
@@ -43,7 +44,7 @@ class RebuildExecutor:
         rebuild_session: RebuildSession,
         width: int = 120,
         height: int = 40,
-    ) -> ExecutionOutcome:
+    ) -> tuple[ExecutionOutcome, "TerminalSession"]:
         """Execute rebuild with proper resource management.
 
         Args:
@@ -77,14 +78,23 @@ class RebuildExecutor:
             # Wait for completion
             outcome = await execution_task
 
-            return outcome
+            return outcome, terminal_session
 
         except asyncio.TimeoutError as e:
             execution_task.cancel()
+            await self._session_manager.cleanup(terminal_session)
             raise ExecutionTimeout(
                 f"Execution timed out after {rebuild_session.config.timeout_seconds}s"
             ) from e
 
-        finally:
-            # Always cleanup session
+        except Exception:
             await self._session_manager.cleanup(terminal_session)
+            raise
+
+    async def cleanup(self, session: "TerminalSession") -> None:
+        """Clean up terminal session.
+
+        Args:
+            session: Terminal session to clean up
+        """
+        await self._session_manager.cleanup(session)
