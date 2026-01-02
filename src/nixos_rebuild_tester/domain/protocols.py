@@ -62,46 +62,6 @@ class TerminalSession(Protocol):
         ...
 
 
-class TerminalConfig(Protocol):
-    """Configuration for terminal creation."""
-
-    @property
-    def width(self) -> int:
-        """Terminal width in characters."""
-        ...
-
-    @property
-    def height(self) -> int:
-        """Terminal height in lines."""
-        ...
-
-
-class TerminalBackend(Protocol):
-    """Abstract terminal session management."""
-
-    async def create_session(self, config: TerminalConfig) -> TerminalSession:
-        """Create new terminal session.
-
-        Args:
-            config: Terminal configuration
-
-        Returns:
-            New terminal session
-
-        Raises:
-            SessionCreationFailed: If session creation fails
-        """
-        ...
-
-    async def destroy_session(self, session: TerminalSession) -> None:
-        """Clean up terminal session.
-
-        Args:
-            session: Session to destroy
-        """
-        ...
-
-
 class ExportMetadata(Protocol):
     """Metadata for artifact export."""
 
