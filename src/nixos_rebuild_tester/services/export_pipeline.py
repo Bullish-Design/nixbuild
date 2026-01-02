@@ -48,12 +48,8 @@ class ExportPipeline:
             task = exporter.export(session, output_path)
             export_tasks.append(task)
 
-        # Run all exports concurrently
-        try:
-            artifacts = await asyncio.gather(*export_tasks, return_exceptions=True)
-        except Exception:
-            # If any export fails, still return successful ones
-            artifacts = []
+        # Run all exports concurrently with exception handling
+        artifacts = await asyncio.gather(*export_tasks, return_exceptions=True)
 
         # Filter out exceptions and return successful artifacts
         return [art for art in artifacts if not isinstance(art, Exception)]

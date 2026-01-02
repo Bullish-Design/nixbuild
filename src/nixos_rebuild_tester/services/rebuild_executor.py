@@ -44,6 +44,8 @@ class RebuildExecutor:
         rebuild_session: RebuildSession,
         width: int = 120,
         height: int = 40,
+        capture_interval_seconds: float = 1.0,
+        max_frames: int = 2000,
     ) -> tuple[ExecutionOutcome, "TerminalSession"]:
         """Execute rebuild with proper resource management.
 
@@ -51,6 +53,8 @@ class RebuildExecutor:
             rebuild_session: Rebuild session to execute
             width: Terminal width
             height: Terminal height
+            capture_interval_seconds: Seconds between frame captures
+            max_frames: Maximum number of frames to capture
 
         Returns:
             Execution outcome with results
@@ -66,6 +70,8 @@ class RebuildExecutor:
             height=height,
         )
 
+        record_task = None
+
         try:
             # Create execution task
             execution_task = asyncio.create_task(
@@ -75,7 +81,16 @@ class RebuildExecutor:
                 )
             )
 
-            # Wait for completion
+            # Start frame recording concurrently
+            record_task = asyncio.create_task(
+                self._frame_recorder.record(
+                    terminal_session,
+                    interval_seconds=capture_interval_seconds,
+                    max_frames=max_frames,
+                )
+            )
+
+            # Wait for execution to complete
             outcome = await execution_task
 
             return outcome, terminal_session
@@ -90,6 +105,16 @@ class RebuildExecutor:
         except Exception:
             await self._session_manager.cleanup(terminal_session)
             raise
+
+        finally:
+            # Stop frame recording
+            if record_task is not None:
+                record_task.cancel()
+                try:
+                    await record_task
+                except asyncio.CancelledError:
+                    # Expected - recording was cancelled
+                    pass
 
     async def cleanup(self, session: "TerminalSession") -> None:
         """Clean up terminal session.

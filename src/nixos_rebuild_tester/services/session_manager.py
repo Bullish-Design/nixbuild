@@ -2,74 +2,17 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING
 
-from terminal_state import Recording, TerminalSession as TerminalStateSession
+from terminal_state import TerminalSession as TerminalStateSession
 
-from nixos_rebuild_tester.domain.exceptions import SessionCreationFailed, SessionTimeout
+from nixos_rebuild_tester.adapters.terminal_state_session import TerminalStateSessionAdapter
+from nixos_rebuild_tester.domain.exceptions import SessionCreationFailed
 from nixos_rebuild_tester.domain.value_objects import TerminalDimensions
 
 if TYPE_CHECKING:
     from nixos_rebuild_tester.domain.models import RebuildConfig
     from nixos_rebuild_tester.domain.protocols import TerminalSession
-
-
-class TerminalStateSessionAdapter:
-    """Async adapter for terminal-state sessions."""
-
-    def __init__(self, session: TerminalStateSession, dimensions: TerminalDimensions):
-        self._session = session
-        self._dimensions = dimensions
-        self._recording: Recording | None = session.recording
-
-    async def send_command(self, command: str) -> None:
-        """Send command to terminal session."""
-        await asyncio.to_thread(self._session.send_command, command, True)
-        self._recording = self._session.recording
-
-    async def capture_frame(self) -> str:
-        """Capture current terminal frame content."""
-        frame = await asyncio.to_thread(self._session.capture)
-        self._recording = self._session.recording
-        return frame.content
-
-    async def wait_for_completion(self, timeout: int) -> int:
-        """Wait for command completion."""
-        wait_for_completion = getattr(self._session, "wait_for_completion", None)
-        if callable(wait_for_completion):
-            return await asyncio.to_thread(wait_for_completion, timeout=timeout)
-
-        expect_text = getattr(self._session, "expect_text", None)
-        if callable(expect_text):
-            completed = await asyncio.to_thread(expect_text, r".+", timeout=timeout)
-            if not completed:
-                raise SessionTimeout(f"Command timed out after {timeout}s")
-            return 0
-
-        await asyncio.sleep(timeout)
-        return 0
-
-    @property
-    def dimensions(self) -> TerminalDimensions:
-        """Return terminal dimensions."""
-        return self._dimensions
-
-    @property
-    def frames(self) -> list[str]:
-        """Return captured frames."""
-        if self._recording and self._recording.frames:
-            return [frame.content for frame in self._recording.frames]
-        return []
-
-    @property
-    def recording(self) -> Recording | None:
-        """Return terminal recording."""
-        return self._recording
-
-    async def close(self) -> None:
-        """Destroy the underlying terminal session."""
-        await asyncio.to_thread(self._session.destroy)
 
 
 class SessionManager:
