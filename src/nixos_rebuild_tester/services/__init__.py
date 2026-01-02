@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from nixos_rebuild_tester.services.build_cleaner import BuildCleaner
 from nixos_rebuild_tester.services.command_runner import CommandRunner
-from nixos_rebuild_tester.services.directory_manager import BuildHistoryManager
+from nixos_rebuild_tester.services.directory_manager import BuildDirectoryManager as BuildHistoryManager
 from nixos_rebuild_tester.services.export_pipeline import ExportPipeline
 from nixos_rebuild_tester.services.exporter_registry import ExporterRegistry
 from nixos_rebuild_tester.services.frame_recorder import FrameRecorder
