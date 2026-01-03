@@ -1,6 +1,8 @@
 # src/nixos_rebuild_tester/nixbuild.py
-"""
-Minimal nixos-rebuild testing with terminal recording.
+"""Minimal nixos-rebuild testing with terminal recording.
+
+Refactored from complex over-engineered architecture to simple direct subprocess approach.
+See REFACTORING_GUIDE.md for details.
 """
 
 from __future__ import annotations
@@ -38,6 +40,25 @@ def _is_remote_flake(flake_ref: str) -> bool:
         "tarball+https:",
     )
     return flake_ref.startswith(remote_prefixes)
+
+
+def _extract_text_from_cast(cast_file: Path) -> str:
+    """Extract text content from asciinema .cast file."""
+    try:
+        with open(cast_file) as f:
+            lines = []
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    event = json.loads(line)
+                    if isinstance(event, list) and len(event) >= 3 and event[1] == "o":
+                        lines.append(event[2])
+                except json.JSONDecodeError:
+                    continue
+            return "".join(lines)
+    except Exception as e:
+        return f"Failed to extract text from recording: {e}"
 
 
 def _extract_error(output: str) -> str | None:
@@ -94,19 +115,14 @@ async def run_nixos_rebuild(
 
     start_time = asyncio.get_event_loop().time()
     proc = None
-    output = ""
     exit_code = 1
+    error_occurred = False
+    error_message_raw = ""
 
     try:
-        proc = await asyncio.create_subprocess_exec(
-            *asciinema_cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
-        )
-
-        stdout_bytes, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-        exit_code = proc.returncode if proc.returncode is not None else 1
-        output = stdout_bytes.decode("utf-8", errors="replace")
+        proc = await asyncio.create_subprocess_exec(*asciinema_cmd)
+        exit_code_result = await asyncio.wait_for(proc.wait(), timeout=timeout)
+        exit_code = exit_code_result if exit_code_result is not None else 1
 
     except asyncio.TimeoutError:
         if proc:
@@ -116,24 +132,34 @@ async def run_nixos_rebuild(
             except Exception:
                 pass
         exit_code = 124
-        output = "Command timed out"
+        error_occurred = True
+        error_message_raw = "Command timed out"
 
     except FileNotFoundError as e:
         exit_code = 127
-        output = f"Command not found: {e.filename}\n\nPlease ensure 'asciinema' is installed."
+        error_occurred = True
+        error_message_raw = f"Command not found: {e.filename}\n\nPlease ensure 'asciinema' is installed."
 
     except PermissionError as e:
         exit_code = 126
-        output = f"Permission denied: {e}"
+        error_occurred = True
+        error_message_raw = f"Permission denied: {e}"
 
     except Exception as e:
         exit_code = 1
-        output = f"Unexpected error: {type(e).__name__}: {e}"
+        error_occurred = True
+        error_message_raw = f"Unexpected error: {type(e).__name__}: {e}"
 
     duration = asyncio.get_event_loop().time() - start_time
 
+    # Extract text from recording for log file
+    if cast_file.exists() and not error_occurred:
+        output_text = _extract_text_from_cast(cast_file)
+    else:
+        output_text = error_message_raw
+
     try:
-        log_file.write_text(output, encoding="utf-8")
+        log_file.write_text(output_text, encoding="utf-8")
     except (PermissionError, OSError) as e:
         typer.secho(
             f"Warning: Failed to write log file {log_file}: {e}",
@@ -143,7 +169,7 @@ async def run_nixos_rebuild(
 
     error_message = None
     if exit_code != 0:
-        error_message = _extract_error(output)
+        error_message = _extract_error(output_text) if not error_occurred else error_message_raw
 
     metadata = {
         "success": exit_code == 0,
