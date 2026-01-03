@@ -38,9 +38,18 @@
               python.pkgs.wheel
             ];
 
+            nativeBuildInputs = [
+              pkgs.makeWrapper
+            ];
+
             dependencies = [
               python.pkgs.typer
             ];
+
+            postFixup = ''
+              wrapProgram $out/bin/nixos-rebuild-test \
+                --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.asciinema ]}
+            '';
 
             meta = {
               description = "Minimal NixOS rebuild testing with direct subprocess approach";
