@@ -66,10 +66,18 @@ async def run_nixos_rebuild(
     Returns:
         Tuple of (exit_code, build_dir, error_message, duration)
     """
+    # Expand and resolve output directory path
+    output_dir = output_dir.expanduser().resolve()
+
     # Create unique build directory
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     build_dir = output_dir / f"rebuild-{timestamp}"
-    build_dir.mkdir(parents=True, exist_ok=True)
+
+    # Ensure all parent directories exist
+    try:
+        build_dir.mkdir(parents=True, exist_ok=True)
+    except (PermissionError, OSError) as e:
+        raise RuntimeError(f"Failed to create output directory {build_dir}: {e}") from e
 
     # Build command
     cmd = ["sudo", "nixos-rebuild", action.value, "--flake", flake_ref]
@@ -94,6 +102,9 @@ async def run_nixos_rebuild(
 
     # Run command with output capture
     start_time = asyncio.get_event_loop().time()
+    proc = None
+    output = ""
+    exit_code = 1
 
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -103,23 +114,42 @@ async def run_nixos_rebuild(
         )
 
         stdout_bytes, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-        exit_code = proc.returncode or 0
+        exit_code = proc.returncode if proc.returncode is not None else 1
         output = stdout_bytes.decode("utf-8", errors="replace")
 
     except asyncio.TimeoutError:
         # Kill process on timeout
-        try:
-            proc.kill()
-            await proc.wait()
-        except Exception:
-            pass
+        if proc:
+            try:
+                proc.kill()
+                await proc.wait()
+            except Exception:
+                pass
         exit_code = 124  # Standard timeout exit code
         output = "Command timed out"
+
+    except FileNotFoundError as e:
+        # Command not found (e.g., asciinema not installed)
+        exit_code = 127
+        output = f"Command not found: {e.filename}\n\nPlease ensure 'asciinema' is installed on your system."
+
+    except PermissionError as e:
+        # Permission denied
+        exit_code = 126
+        output = f"Permission denied: {e}"
+
+    except Exception as e:
+        # Catch all other exceptions
+        exit_code = 1
+        output = f"Unexpected error: {type(e).__name__}: {e}"
 
     duration = asyncio.get_event_loop().time() - start_time
 
     # Save log
-    log_file.write_text(output, encoding="utf-8")
+    try:
+        log_file.write_text(output, encoding="utf-8")
+    except (PermissionError, OSError) as e:
+        typer.secho(f"Warning: Failed to write log file {log_file}: {e}", fg=typer.colors.YELLOW, err=True)
 
     # Extract error if failed
     error_message = None
@@ -142,7 +172,10 @@ async def run_nixos_rebuild(
     }
 
     metadata_file = build_dir / "metadata.json"
-    metadata_file.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    try:
+        metadata_file.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    except (PermissionError, OSError) as e:
+        typer.secho(f"Warning: Failed to write metadata file {metadata_file}: {e}", fg=typer.colors.YELLOW, err=True)
 
     return exit_code, build_dir, error_message or "", duration
 
@@ -194,18 +227,22 @@ def list_builds(
     limit: int = typer.Option(10, help="Number of recent builds to show"),
 ) -> None:
     """List recent rebuild attempts."""
-    base_dir = output_dir.expanduser()
+    base_dir = output_dir.expanduser().resolve()
 
     if not base_dir.exists():
         typer.echo(f"No builds found in {base_dir}")
         return
 
     # Find all rebuild directories
-    rebuild_dirs = sorted(
-        [d for d in base_dir.iterdir() if d.is_dir() and d.name.startswith("rebuild-")],
-        key=lambda x: x.stat().st_mtime,
-        reverse=True,
-    )[:limit]
+    try:
+        rebuild_dirs = sorted(
+            [d for d in base_dir.iterdir() if d.is_dir() and d.name.startswith("rebuild-")],
+            key=lambda x: x.stat().st_mtime,
+            reverse=True,
+        )[:limit]
+    except (PermissionError, OSError) as e:
+        typer.secho(f"Error accessing directory {base_dir}: {e}", fg=typer.colors.RED, err=True)
+        return
 
     if not rebuild_dirs:
         typer.echo("No builds found")
@@ -215,20 +252,23 @@ def list_builds(
     for build_dir in rebuild_dirs:
         metadata_file = build_dir / "metadata.json"
         if metadata_file.exists():
-            with open(metadata_file) as f:
-                metadata = json.load(f)
+            try:
+                with open(metadata_file) as f:
+                    metadata = json.load(f)
 
-            status = "✓" if metadata["success"] else "✗"
-            color = typer.colors.GREEN if metadata["success"] else typer.colors.RED
+                status = "✓" if metadata["success"] else "✗"
+                color = typer.colors.GREEN if metadata["success"] else typer.colors.RED
 
-            typer.secho(f"{status} {build_dir.name}", fg=color, bold=True)
-            typer.echo(f"  Action: {metadata['action']}")
-            typer.echo(f"  Duration: {metadata['duration_seconds']:.1f}s")
-            typer.echo(f"  Timestamp: {metadata['timestamp']}")
+                typer.secho(f"{status} {build_dir.name}", fg=color, bold=True)
+                typer.echo(f"  Action: {metadata['action']}")
+                typer.echo(f"  Duration: {metadata['duration_seconds']:.1f}s")
+                typer.echo(f"  Timestamp: {metadata['timestamp']}")
 
-            if metadata.get("error_message"):
-                typer.echo(f"  Error: {metadata['error_message']}")
-            typer.echo()
+                if metadata.get("error_message"):
+                    typer.echo(f"  Error: {metadata['error_message']}")
+                typer.echo()
+            except (PermissionError, OSError, json.JSONDecodeError) as e:
+                typer.secho(f"Warning: Failed to read metadata for {build_dir.name}: {e}", fg=typer.colors.YELLOW, err=True)
 
 
 def main() -> None:
