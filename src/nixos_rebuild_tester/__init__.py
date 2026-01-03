@@ -1,9 +1,10 @@
-"""NixOS rebuild test automation with terminal recording."""
+"""Minimal NixOS rebuild testing with terminal recording.
 
-from __future__ import annotations
+Refactored from complex over-engineered architecture to simple direct subprocess approach.
+See REFACTORING_GUIDE.md for details on the refactoring.
+"""
 
-from nixos_rebuild_tester.application import Application
-from nixos_rebuild_tester.domain.models import Config, RebuildAction, RebuildResult
+from nixos_rebuild_tester.nixbuild import main
 
-__version__ = "0.1.0"
-__all__ = ["Application", "Config", "RebuildAction", "RebuildResult"]
+__all__ = ["main"]
+__version__ = "0.2.0"

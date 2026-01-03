@@ -3,13 +3,9 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    terminal-state = {
-      url = "github:Bullish-Design/terminal-state";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
-  outputs = { self, nixpkgs, terminal-state }:
+  outputs = { self, nixpkgs }:
     let
       systems = [ "x86_64-linux" "aarch64-linux" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
@@ -28,12 +24,11 @@
         let
           pkgs = nixpkgs.legacyPackages.${system};
           python = pkgs.python312;
-          terminal-state-pkg = terminal-state.packages.${system}.default;
         in
         {
           default = python.pkgs.buildPythonApplication {
             pname = "nixos-rebuild-tester";
-            version = "0.1.0";
+            version = "0.2.0";
 
             pyproject = true;
             src = ./src;
@@ -44,13 +39,11 @@
             ];
 
             dependencies = [
-              terminal-state-pkg
-              python.pkgs.pydantic
-              python.pkgs.click
+              python.pkgs.typer
             ];
 
             meta = {
-              description = "Automated NixOS rebuild testing";
+              description = "Minimal NixOS rebuild testing with direct subprocess approach";
               mainProgram = "nixos-rebuild-test";
             };
           };
@@ -66,18 +59,16 @@
           default = pkgs.mkShell {
             packages = [
               python
-              terminal-state.packages.${system}.default
-              python.pkgs.pydantic
-              python.pkgs.click
+              python.pkgs.typer
               python.pkgs.pytest
               python.pkgs.pytest-asyncio
               python.pkgs.ruff
               pkgs.uv
-              pkgs.tmux
+              pkgs.asciinema
             ];
 
             shellHook = ''
-              echo "NixOS Rebuild Tester Development Shell"
+              echo "NixOS Rebuild Tester Development Shell (Refactored)"
               echo "Run: uv pip install -e ./src"
             '';
           };
