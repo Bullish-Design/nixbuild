@@ -206,7 +206,7 @@ def run(
     timeout: int = typer.Option(1800, help="Maximum rebuild time in seconds"),
 ) -> None:
     """Run a NixOS rebuild with recording."""
-    typer.echo(f"Starting NixOS rebuild ({action.value}) at {flake}")
+    typer.echo(f"\nStarting NixOS rebuild ({action.value}) at {flake}")
     typer.echo(f"Output directory: {output_dir}")
     typer.echo()
 
