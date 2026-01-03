@@ -1,13 +1,13 @@
-"""Minimal nixos-rebuild testing with terminal recording.
-
-Refactored from complex over-engineered architecture to simple direct subprocess approach.
-See REFACTORING_GUIDE.md for details.
+# src/nixos_rebuild_tester/nixbuild.py
+"""
+Minimal nixos-rebuild testing with terminal recording.
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
+import shutil
 import sys
 from datetime import datetime
 from enum import Enum
@@ -66,31 +66,23 @@ async def run_nixos_rebuild(
     Returns:
         Tuple of (exit_code, build_dir, error_message, duration)
     """
-    # Expand and resolve output directory path
     output_dir = output_dir.expanduser().resolve()
-
-    # Create unique build directory
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     build_dir = output_dir / f"rebuild-{timestamp}"
 
-    # Ensure all parent directories exist
     try:
         build_dir.mkdir(parents=True, exist_ok=True)
     except (PermissionError, OSError) as e:
         raise RuntimeError(f"Failed to create output directory {build_dir}: {e}") from e
 
-    # Build command
     cmd = ["sudo", "nixos-rebuild", action.value, "--flake", flake_ref]
 
-    # Add flags for remote flakes
     if _is_remote_flake(flake_ref):
         cmd.extend(["--refresh", "--no-write-lock-file"])
 
-    # Setup output files
     log_file = build_dir / "rebuild.log"
     cast_file = build_dir / "session.cast"
 
-    # Wrap with asciinema for recording
     asciinema_cmd = [
         "asciinema",
         "rec",
@@ -100,7 +92,6 @@ async def run_nixos_rebuild(
         str(cast_file),
     ]
 
-    # Run command with output capture
     start_time = asyncio.get_event_loop().time()
     proc = None
     output = ""
@@ -118,45 +109,42 @@ async def run_nixos_rebuild(
         output = stdout_bytes.decode("utf-8", errors="replace")
 
     except asyncio.TimeoutError:
-        # Kill process on timeout
         if proc:
             try:
                 proc.kill()
                 await proc.wait()
             except Exception:
                 pass
-        exit_code = 124  # Standard timeout exit code
+        exit_code = 124
         output = "Command timed out"
 
     except FileNotFoundError as e:
-        # Command not found (e.g., asciinema not installed)
         exit_code = 127
-        output = f"Command not found: {e.filename}\n\nPlease ensure 'asciinema' is installed on your system."
+        output = f"Command not found: {e.filename}\n\nPlease ensure 'asciinema' is installed."
 
     except PermissionError as e:
-        # Permission denied
         exit_code = 126
         output = f"Permission denied: {e}"
 
     except Exception as e:
-        # Catch all other exceptions
         exit_code = 1
         output = f"Unexpected error: {type(e).__name__}: {e}"
 
     duration = asyncio.get_event_loop().time() - start_time
 
-    # Save log
     try:
         log_file.write_text(output, encoding="utf-8")
     except (PermissionError, OSError) as e:
-        typer.secho(f"Warning: Failed to write log file {log_file}: {e}", fg=typer.colors.YELLOW, err=True)
+        typer.secho(
+            f"Warning: Failed to write log file {log_file}: {e}",
+            fg=typer.colors.YELLOW,
+            err=True,
+        )
 
-    # Extract error if failed
     error_message = None
     if exit_code != 0:
         error_message = _extract_error(output)
 
-    # Save metadata
     metadata = {
         "success": exit_code == 0,
         "exit_code": exit_code,
@@ -175,7 +163,11 @@ async def run_nixos_rebuild(
     try:
         metadata_file.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     except (PermissionError, OSError) as e:
-        typer.secho(f"Warning: Failed to write metadata file {metadata_file}: {e}", fg=typer.colors.YELLOW, err=True)
+        typer.secho(
+            f"Warning: Failed to write metadata file {metadata_file}: {e}",
+            fg=typer.colors.YELLOW,
+            err=True,
+        )
 
     return exit_code, build_dir, error_message or "", duration
 
@@ -192,12 +184,10 @@ def run(
     typer.echo(f"Output directory: {output_dir}")
     typer.echo()
 
-    # Run rebuild
     exit_code, build_dir, error_message, duration = asyncio.run(
         run_nixos_rebuild(action, flake, timeout, output_dir)
     )
 
-    # Display results
     if exit_code == 0:
         typer.secho("✓ Rebuild successful", fg=typer.colors.GREEN, bold=True)
     else:
@@ -209,16 +199,58 @@ def run(
     typer.echo(f"Exit code: {exit_code}")
     typer.echo(f"\nOutput saved to: {build_dir}")
 
-    # List artifacts
     log_file = build_dir / "rebuild.log"
     cast_file = build_dir / "session.cast"
     if log_file.exists():
         typer.echo(f"  Log: {log_file.name}")
     if cast_file.exists():
         typer.echo(f"  Recording: {cast_file.name}")
+        typer.echo(f"\nPlay with: nixos-rebuild-test play {cast_file}")
 
-    # Exit with same code as rebuild
     sys.exit(exit_code)
+
+
+@app.command()
+def play(
+    cast_file: Path = typer.Argument(..., help="Path to .cast file to play"),
+    speed: float = typer.Option(1.0, help="Playback speed multiplier"),
+    idle_time_limit: float = typer.Option(None, help="Limit idle time to N seconds"),
+) -> None:
+    """Play back an asciinema recording."""
+    cast_file = cast_file.expanduser().resolve()
+
+    if not cast_file.exists():
+        typer.secho(f"Error: File not found: {cast_file}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(1)
+
+    if not cast_file.suffix == ".cast":
+        typer.secho(f"Warning: Expected .cast file, got {cast_file.suffix}", fg=typer.colors.YELLOW)
+
+    asciinema_path = shutil.which("asciinema")
+    if not asciinema_path:
+        typer.secho("Error: asciinema not found in PATH", fg=typer.colors.RED, err=True)
+        typer.echo("This shouldn't happen - asciinema should be bundled with nixos-rebuild-test")
+        raise typer.Exit(1)
+
+    cmd = [asciinema_path, "play", str(cast_file)]
+
+    if speed != 1.0:
+        cmd.extend(["--speed", str(speed)])
+
+    if idle_time_limit is not None:
+        cmd.extend(["--idle-time-limit", str(idle_time_limit)])
+
+    try:
+        import subprocess
+
+        result = subprocess.run(cmd, check=False)
+        sys.exit(result.returncode)
+    except KeyboardInterrupt:
+        typer.echo("\nPlayback interrupted")
+        sys.exit(0)
+    except Exception as e:
+        typer.secho(f"Error playing recording: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -233,7 +265,6 @@ def list_builds(
         typer.echo(f"No builds found in {base_dir}")
         return
 
-    # Find all rebuild directories
     try:
         rebuild_dirs = sorted(
             [d for d in base_dir.iterdir() if d.is_dir() and d.name.startswith("rebuild-")],
@@ -248,7 +279,6 @@ def list_builds(
         typer.echo("No builds found")
         return
 
-    # Display each build
     for build_dir in rebuild_dirs:
         metadata_file = build_dir / "metadata.json"
         if metadata_file.exists():
@@ -266,9 +296,18 @@ def list_builds(
 
                 if metadata.get("error_message"):
                     typer.echo(f"  Error: {metadata['error_message']}")
+
+                cast_file = build_dir / metadata["artifacts"]["cast"]
+                if cast_file.exists():
+                    typer.echo(f"  Play: nixos-rebuild-test play {cast_file}")
+
                 typer.echo()
             except (PermissionError, OSError, json.JSONDecodeError) as e:
-                typer.secho(f"Warning: Failed to read metadata for {build_dir.name}: {e}", fg=typer.colors.YELLOW, err=True)
+                typer.secho(
+                    f"Warning: Failed to read metadata for {build_dir.name}: {e}",
+                    fg=typer.colors.YELLOW,
+                    err=True,
+                )
 
 
 def main() -> None:
