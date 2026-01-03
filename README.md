@@ -1,15 +1,15 @@
 # NixOS Rebuild Tester
 
-Automated NixOS rebuild testing with terminal recording, visual artifacts, and structured metadata.
+Minimal NixOS rebuild testing with terminal recording - refactored from complex over-engineered architecture to simple direct subprocess approach.
+
+**Refactored**: Reduced from ~3,300 lines across 38 files to ~250 lines in 2 files. See [REFACTORING_GUIDE.md](REFACTORING_GUIDE.md) for details.
 
 ## Features
 
-- 🎬 **Terminal Recording**: Capture complete rebuild sessions with timing information
-- 📸 **Visual Artifacts**: Automatic screenshots and optional GIF animations
+- 🎬 **Terminal Recording**: Capture complete rebuild sessions with asciinema
 - 📊 **Structured Metadata**: Machine-readable JSON for CI/CD integration
-- 🧹 **Smart Cleanup**: Configurable retention of build history
-- 🔧 **Flexible CLI**: Easy-to-use command-line interface
-- 🐍 **Programmatic API**: Use as a Python library
+- 🔧 **Simple CLI**: Minimal command-line interface built with Typer
+- 🚀 **Direct Subprocess**: No complex abstractions - just asyncio + subprocess
 
 ## Quick Start
 
@@ -29,17 +29,14 @@ uv pip install -e ./src
 ### Basic Usage
 
 ```bash
-# Run a test rebuild (safe, doesn't activate)
+# Run a dry-build (safe, doesn't activate)
 nixos-rebuild-test run
 
-# Run a dry-build (no sudo required)
-nixos-rebuild-test run --action dry-build
+# Run a test rebuild
+nixos-rebuild-test run --action test
 
-# Export GIF animation
-nixos-rebuild-test run --export-gif
-
-# Keep only last 5 builds
-nixos-rebuild-test run --keep-last 5
+# Specify custom flake
+nixos-rebuild-test run --flake github:user/repo#hostname
 
 # List recent builds
 nixos-rebuild-test list-builds
@@ -57,28 +54,25 @@ nixos-rebuild-test run [OPTIONS]
 
 **Options:**
 
-- `--action` - Rebuild action: `test`, `build`, `dry-build`, `dry-activate` (default: `test`)
+- `--action` - Rebuild action: `test`, `build`, `dry-build`, `dry-activate` (default: `dry-build`)
 - `--flake` - Flake reference (default: `.#`)
 - `--output-dir` - Base output directory (default: `./rebuild-logs`)
-- `--keep-last` - Keep only last N builds
-- `--no-recording` - Disable terminal recording
-- `--export-gif` - Export GIF animation (slow)
 - `--timeout` - Maximum rebuild time in seconds (default: 1800)
 
 **Examples:**
 
 ```bash
-# Test rebuild of current flake
+# Dry-build of current flake (default)
 nixos-rebuild-test run
+
+# Test rebuild
+nixos-rebuild-test run --action test
 
 # Build a specific flake
 nixos-rebuild-test run --action build --flake github:user/repo#hostname
 
-# Quick dry-build without recording
-nixos-rebuild-test run --action dry-build --no-recording
-
-# Create shareable GIF
-nixos-rebuild-test run --export-gif
+# Quick dry-build with short timeout
+nixos-rebuild-test run --timeout 300
 ```
 
 ### `list-builds` Command
@@ -103,9 +97,7 @@ rebuild-logs/
 └── rebuild-20260102-143022/
     ├── metadata.json      # Structured result data
     ├── rebuild.log        # Full text output
-    ├── rebuild.cast       # Asciinema recording
-    ├── final.png          # Terminal screenshot
-    └── rebuild.gif        # Animated GIF (optional)
+    └── session.cast       # Asciinema recording
 ```
 
 ### metadata.json Schema
@@ -114,47 +106,16 @@ rebuild-logs/
 {
   "success": true,
   "exit_code": 0,
+  "action": "dry-build",
+  "flake_ref": ".#",
   "timestamp": "2026-01-02T14:30:22.123456",
   "duration_seconds": 127.3,
-  "action": "test",
   "error_message": null,
-  "files": {
+  "artifacts": {
     "log": "rebuild.log",
-    "cast": "rebuild.cast",
-    "screenshot": "final.png",
-    "gif": null
+    "cast": "session.cast"
   }
 }
-```
-
-## Programmatic API
-
-Use as a Python library:
-
-```python
-import asyncio
-from nixos_rebuild_tester import Config, RebuildRunner, RebuildAction
-
-# Configure
-config = Config(
-    rebuild=RebuildConfig(
-        action=RebuildAction.DRY_BUILD,
-        flake_ref=".#"
-    ),
-    output=OutputConfig(
-        keep_last_n=5
-    )
-)
-
-# Run
-runner = RebuildRunner(config)
-result = asyncio.run(runner.run())
-
-# Check results
-if result.success:
-    print(f"Build succeeded in {result.duration_seconds:.1f}s")
-else:
-    print(f"Build failed: {result.error_message}")
 ```
 
 ## Use Cases
@@ -164,14 +125,14 @@ else:
 Test configuration changes before committing:
 
 ```bash
-nixos-rebuild-test run --action dry-build
+nixos-rebuild-test run
 ```
 
 ### CI/CD Integration
 
 ```yaml
 - name: Test NixOS rebuild
-  run: nix run .# -- run --no-recording --action build
+  run: nix run .# -- run --action build
 
 - name: Upload logs on failure
   if: failure()
@@ -180,54 +141,50 @@ nixos-rebuild-test run --action dry-build
     path: rebuild-logs/
 ```
 
-### Documentation
-
-Create visual guides:
-
-```bash
-nixos-rebuild-test run --export-gif
-# Share rebuild.gif in wiki or PR
-```
-
 ### Debugging
 
 Analyze failures:
 
 ```bash
-# Run multiple tests
-for i in {1..10}; do nixos-rebuild-test run; done
+# Run test
+nixos-rebuild-test run --action test
 
-# Find failures
-nixos-rebuild-test list-builds | grep "✗"
+# List recent builds
+nixos-rebuild-test list-builds
 
-# Review recordings
-asciinema play rebuild-logs/rebuild-*/rebuild.cast
+# Review recording
+asciinema play rebuild-logs/rebuild-*/session.cast
 ```
 
 ## Requirements
 
 - NixOS or Nix with flakes enabled
 - Python 3.12+
-- tmux
+- asciinema (for terminal recording)
 - sudo access (for most rebuild actions)
 
 ## Architecture
 
-Built on top of [terminal-state](https://github.com/Bullish-Design/terminal-state) for robust terminal recording:
+Simple direct approach:
 
 ```
-CLI (Click) → Runner → TerminalSession (tmux) → nixos-rebuild
-                    ↓
-            Exporters (Asciinema, GIF, PNG)
-                    ↓
-            Structured Metadata (JSON)
+CLI (Typer) → asyncio.subprocess → asciinema rec → nixos-rebuild
+                                           ↓
+                                    Structured Metadata (JSON)
 ```
+
+**Key simplifications:**
+- Direct subprocess calls instead of tmux + pexpect
+- Native asciinema recording instead of custom frame recording
+- Simple error extraction instead of complex error detection service
+- No DI container, domain models, or abstraction layers
+
+See [REFACTORING_GUIDE.md](REFACTORING_GUIDE.md) for full refactoring details.
 
 ## Documentation
 
-- [CONCEPT.md](CONCEPT.md) - Project vision and design decisions
-- [SPEC.md](SPEC.md) - Technical specification (coming soon)
-- [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) - Implementation guide (coming soon)
+- [REFACTORING_GUIDE.md](REFACTORING_GUIDE.md) - Refactoring from complex to minimal architecture
+- [CONCEPT.md](CONCEPT.md) - Original project vision
 
 ## Development
 
@@ -238,9 +195,6 @@ nix develop
 # Install in editable mode
 uv pip install -e ./src
 
-# Run tests
-pytest tests/
-
 # Run linter
 ruff check src/
 
@@ -248,15 +202,34 @@ ruff check src/
 ruff format src/
 ```
 
+## What Changed in v0.2.0
+
+**Removed:**
+- Complex domain models (RebuildSession, ExecutionOutcome, etc.)
+- Service layer (BuildExecutor, CommandRunner, FrameRecorder, etc.)
+- Adapter layer (TerminalStateSessionAdapter, exporters)
+- DI container and application facade
+- terminal-state dependency
+- tmux + pexpect integration
+- GIF/screenshot export
+- Complex error detection
+
+**Added:**
+- Single minimal implementation (~250 lines)
+- Direct subprocess execution
+- Native asciinema recording
+- Simple error extraction
+
+**Result:**
+- 94% reduction in code (3,300 → 250 lines)
+- 95% reduction in files (38 → 2 files)
+- 80% reduction in dependencies
+- Same core functionality
+
 ## License
 
 MIT
 
-## Contributing
-
-Contributions welcome! Please see DEVELOPER_GUIDE.md for implementation details.
-
 ## Related Projects
 
-- [terminal-state](https://github.com/Bullish-Design/terminal-state) - Terminal session recording library
-- [asciinema](https://asciinema.org/) - Terminal session recorder (compatible format)
+- [asciinema](https://asciinema.org/) - Terminal session recorder
