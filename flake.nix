@@ -11,6 +11,12 @@
       forAllSystems = nixpkgs.lib.genAttrs systems;
     in
     {
+      nixosModules.default = { pkgs, ... }: {
+        environment.systemPackages = [
+          pkgs.asciinema
+        ];
+      };
+
       # App that can be run with `nix run`
       apps = forAllSystems (system: {
         default = {
