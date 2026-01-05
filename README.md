@@ -2,8 +2,6 @@
 
 Minimal NixOS rebuild testing with terminal recording - refactored from complex over-engineered architecture to simple direct subprocess approach.
 
-**Refactored**: Reduced from ~3,300 lines across 38 files to ~250 lines in 2 files. See [REFACTORING_GUIDE.md](REFACTORING_GUIDE.md) for details.
-
 ## Features
 
 - 🎬 **Terminal Recording**: Capture complete rebuild sessions with asciinema
