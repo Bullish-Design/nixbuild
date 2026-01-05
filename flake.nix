@@ -11,6 +11,10 @@
       forAllSystems = nixpkgs.lib.genAttrs systems;
     in
     {
+      lib = {
+        mkCliVmTest = import ./nix/mk-cli-vm-test.nix { lib = nixpkgs.lib; };
+      };
+
       nixosModules.default = { pkgs, ... }: {
         environment.systemPackages = [
           pkgs.asciinema
