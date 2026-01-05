@@ -154,6 +154,63 @@ nixos-rebuild-test list-builds
 asciinema play rebuild-logs/rebuild-*/session.cast
 ```
 
+## VM CLI Test Library (Flake)
+
+`nixbuild` also exposes a small NixOS VM test helper via `lib.mkCliVmTest` for
+headless CLI validation without rebooting your host.
+
+### Example Flake Integration
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixbuild.url = "github:Bullish-Design/nixbuild";
+  };
+
+  outputs = { self, nixpkgs, nixbuild }:
+    let
+      system = "x86_64-linux";
+      pkgs = nixpkgs.legacyPackages.${system};
+      vmTest = nixbuild.lib.mkCliVmTest {
+        inherit pkgs;
+        name = "cli-vm-test";
+        machineModules = [
+          ({ ... }: { services.openssh.enable = true; })
+        ];
+        commands = [
+          "nixos-version"
+          "systemctl --failed --no-pager"
+        ];
+      };
+    in
+    {
+      checks.${system}.cli-vm-test = vmTest.test;
+      packages.${system}.cli-vm-test-driver = vmTest.driverInteractive;
+      apps.${system}.cli-vm-run = {
+        type = "app";
+        program = "${vmTest.driverInteractive}/bin/nixos-test-driver";
+      };
+    };
+}
+```
+
+### Artifacts
+
+The VM test writes artifacts to the test output directory:
+
+- `transcript.log` - CLI transcript with `[exit=N]` markers
+- `journal.txt` - `journalctl -b --no-pager`
+- `diagnostics.txt` - extra diagnostics (`systemctl --failed`, `nixos-version`, `dmesg`)
+- `summary.json` - per-command status and timings
+
+For local runs, pass an explicit output directory to the driver to keep artifacts
+even on failure:
+
+```bash
+./result/bin/nixos-test-driver -o ./vm-artifacts
+```
+
 ## Requirements
 
 - NixOS or Nix with flakes enabled
