@@ -3,14 +3,21 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    devenv.url = "github:cachix/devenv";
   };
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, devenv, ... }@inputs:
     let
       systems = [ "x86_64-linux" "aarch64-linux" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
+      devenvFlake = devenv.lib.mkFlake {
+        inherit inputs systems;
+        modules = [ ./devenv.nix ];
+      };
     in
     {
+      inherit (devenvFlake) packages devShells;
+
       lib = {
         mkCliVmTest = import ./nix/mk-cli-vm-test.nix { lib = nixpkgs.lib; };
       };
@@ -25,72 +32,8 @@
       apps = forAllSystems (system: {
         default = {
           type = "app";
-          program = "${self.packages.${system}.default}/bin/nixos-rebuild-test";
+          program = "${self.packages.${system}.nixbuild}/bin/nixos-rebuild-test";
         };
       });
-
-      # Python package
-      packages = forAllSystems (system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-          python = pkgs.python312;
-        in
-        {
-          default = python.pkgs.buildPythonApplication {
-            pname = "nixos-rebuild-tester";
-            version = "0.2.0";
-
-            pyproject = true;
-            src = ./src;
-
-            build-system = [
-              python.pkgs.setuptools
-              python.pkgs.wheel
-            ];
-
-            nativeBuildInputs = [
-              pkgs.makeWrapper
-            ];
-
-            dependencies = [
-              python.pkgs.typer
-            ];
-
-            postFixup = ''
-              wrapProgram $out/bin/nixos-rebuild-test \
-                --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.asciinema ]}
-            '';
-
-            meta = {
-              description = "Minimal NixOS rebuild testing with direct subprocess approach";
-              mainProgram = "nixos-rebuild-test";
-            };
-          };
-        });
-
-      # Development shell
-      devShells = forAllSystems (system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-          python = pkgs.python312;
-        in
-        {
-          default = pkgs.mkShell {
-            packages = [
-              python
-              python.pkgs.typer
-              python.pkgs.pytest
-              python.pkgs.pytest-asyncio
-              python.pkgs.ruff
-              pkgs.uv
-              pkgs.asciinema
-            ];
-
-            shellHook = ''
-              echo "NixOS Rebuild Tester Development Shell (Refactored)"
-              echo "Run: uv pip install -e ./src"
-            '';
-          };
-        });
     };
 }
