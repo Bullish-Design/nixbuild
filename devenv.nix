@@ -9,6 +9,11 @@
 
   # https://devenv.sh/languages/
   # languages.rust.enable = true;
+  languages.python = {
+    enable = true;
+    version = "3.12";
+    uv.enable = true;
+  };
 
   # https://devenv.sh/processes/
   # processes.dev.exec = "${lib.getExe pkgs.watchexec} -n -- ls -la";
@@ -38,6 +43,8 @@
     echo "Running tests"
     git --version | grep --color=auto "${pkgs.git.version}"
   '';
+
+  outputs.nixbuild = config.languages.python.import ./src {};
 
   # https://devenv.sh/git-hooks/
   # git-hooks.hooks.shellcheck.enable = true;
