@@ -33,10 +33,22 @@
   '';
 
   # https://devenv.sh/tasks/
-  # tasks = {
-  #   "myproj:setup".exec = "mytool build";
-  #   "devenv:enterShell".after = [ "myproj:setup" ];
-  # };
+  #
+  # devman — the automation plane (CONCEPT.md §5), with the direct task shape
+  # (like nix-desktop): this repository has no Python test suite (its pytest
+  # config points at a `../tests` that does not exist), so the gate is the
+  # flake itself. `base:check` is the repo's configured linter (src/pyproject
+  # .toml); `base:test` builds the CLI package the flake ships.
+  devman = {
+    enable = true;
+    project = "nixbuild";
+    groups = [ "base" ];
+  };
+
+  tasks = {
+    "base:check".exec = "ruff check src";
+    "base:test".exec = "nix flake check";
+  };
 
   # https://devenv.sh/tests/
   enterTest = ''
