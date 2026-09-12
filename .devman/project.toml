@@ -1,0 +1,4 @@
+schema = 1
+project = "nixbuild"
+groups = ["base"]
+policy = "stable"
