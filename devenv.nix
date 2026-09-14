@@ -39,12 +39,6 @@
   # config points at a `../tests` that does not exist), so the gate is the
   # flake itself. `base:check` is the repo's configured linter (src/pyproject
   # .toml); `base:test` builds the CLI package the flake ships.
-  devman = {
-    enable = true;
-    project = "nixbuild";
-    groups = [ "base" ];
-  };
-
   tasks = {
     "base:check".exec = "ruff check src";
     "base:test".exec = "nix flake check";
